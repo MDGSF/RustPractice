@@ -1,17 +1,26 @@
 fn main() {
     println!("Hello, world!");
-    let vector = vec!["fli", "faa", "fbb"];
-    println!("{}", longest_common_prefix(vector))
+    let vector = vec![
+        String::from("fl"),
+        String::from("faaaaa"),
+        String::from("fbbaa"),
+    ];
+    println!("longest_common_prefix = {}", longest_common_prefix(vector))
 }
 
 pub fn longest_common_prefix(strs: Vec<String>) -> String {
     let mut prefix = "".to_string();
 
+    let mut is_first = true;
     let mut min_len = 0;
-
     for x in strs.iter() {
-        if x.len() < min_len {
+        if is_first {
             min_len = x.len();
+            is_first = false;
+        } else {
+            if x.len() < min_len {
+                min_len = x.len();
+            }
         }
     }
 
@@ -26,8 +35,10 @@ pub fn longest_common_prefix(strs: Vec<String>) -> String {
             }
             j = j + 1;
         }
-        let a = strs[0].as_bytes();
-        prefix = prefix + &a[i].to_string();
+
+        let a = &strs[0];
+        let a: Vec<char> = a.chars().collect();
+        prefix.push(a[i]);
 
         i = i + 1;
     }
