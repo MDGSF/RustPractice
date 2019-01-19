@@ -10,6 +10,7 @@ use rmp_serialize::{Decoder, Encoder};
 use rmps::{Deserializer, Serializer};
 use rustc_serialize::{Decodable, Encodable};
 use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 
 fn main() {
     println!("Hello, world!");
@@ -30,7 +31,7 @@ struct Custom2 {
 }
 
 fn test2() {
-    println!("test2 start");
+    println!("\ntest2 start");
     let val = Custom {
         id: 42u32,
         key: "the Answer".to_string(),
@@ -54,6 +55,18 @@ struct Human {
     name: String,
 }
 
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+struct Human2 {
+    //#[serde(default)]
+    //my_id: u32,
+    #[serde(default)]
+    name: String,
+
+    //#[serde(rename = "age")]
+    #[serde(default)]
+    my_age: u32,
+}
+
 fn test1() {
     println!("test1 start");
     let mut buf = Vec::new();
@@ -63,4 +76,9 @@ fn test1() {
     };
     val.serialize(&mut Serializer::new(&mut buf)).unwrap();
     println!("buf = {:?}", buf);
+
+    let cur = Cursor::new(&buf[..]);
+    let mut de = Deserializer::new(cur);
+    let out: Human2 = Deserialize::deserialize(&mut de).unwrap();
+    println!("out = {:?}", out);
 }
