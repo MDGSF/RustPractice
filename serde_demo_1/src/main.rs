@@ -3,6 +3,11 @@ extern crate serde_derive;
 extern crate serde;
 extern crate serde_json;
 
+use std::error::Error;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+
 #[derive(Serialize, Deserialize, Debug)]
 struct Sub1 {
     name: String,
@@ -51,4 +56,8 @@ fn main() {
     let data = serde_json::to_string(&deserialized).unwrap();
 
     println!("data = {}", data);
+
+    let path = Path::new("data.txt");
+    let mut file = File::create(&path).unwrap();
+    file.write_all(data.as_bytes()).unwrap();
 }
