@@ -53,18 +53,24 @@ fn test2() {
 struct Human {
     age: u32,
     name: String,
+
+    #[serde(default, rename = "test")]
+    test: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize)]
 struct Human2 {
+    //#[serde(rename = "age")]
+    #[serde(default)]
+    my_age: u32,
+
     //#[serde(default)]
     //my_id: u32,
     #[serde(default)]
     name: String,
 
-    //#[serde(rename = "age")]
-    #[serde(default)]
-    my_age: u32,
+    #[serde(default, rename = "addr")]
+    addr: String,
 }
 
 fn test1() {
@@ -73,6 +79,7 @@ fn test1() {
     let val = Human {
         age: 42,
         name: "John".into(),
+        test: "test".into(),
     };
     val.serialize(&mut Serializer::new(&mut buf)).unwrap();
     println!("buf = {:?}", buf);

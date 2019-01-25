@@ -22,12 +22,12 @@ struct Point1 {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Point2 {
+    #[serde(default)]
+    y: i32,
+
     #[serde(rename = "x")]
     #[serde(default)]
     iix: i32,
-
-    #[serde(default)]
-    y: i32,
 
     #[serde(default)]
     z: i32,
