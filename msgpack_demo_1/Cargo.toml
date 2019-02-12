@@ -1,0 +1,10 @@
+[package]
+name = "msgpack_demo_1"
+version = "0.1.0"
+authors = ["huangjian <1342042894@qq.com>"]
+edition = "2018"
+
+[dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+rmp-serde = { path = "./msgpack-rust/rmp-serde" }

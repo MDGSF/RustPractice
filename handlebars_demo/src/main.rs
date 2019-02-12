@@ -1,0 +1,22 @@
+extern crate handlebars;
+#[macro_use]
+extern crate serde_json;
+
+use handlebars::Handlebars;
+
+fn main() {
+    let mut reg = Handlebars::new();
+    println!(
+        "{}",
+        reg.render_template("Hello {{name}}", &json!({"name": "foo"}))
+            .unwrap()
+    );
+
+    reg.register_template_string(
+        "tpl_1",
+        r#"Gool afternoon, 
+    {{name}}"#,
+    )
+    .unwrap();
+    println!("{}", reg.render("tpl_1", &json!({"name": "foo"})).unwrap());
+}
