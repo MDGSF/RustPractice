@@ -1,8 +1,11 @@
 fn main() {
-    test1()
+    test1();
+    test2();
 }
 
 fn test1() {
+    println!("\ntest1 start");
+
     let mut vec = Vec::new();
     vec.push(1);
     vec.push(2);
@@ -24,9 +27,31 @@ fn test1() {
     println!("vec = {:?}", vec);
 
     for x in &vec {
-        println!("{}", x);
+        print!("{} ", x);
     }
+    println!();
+
     assert_eq!(vec, [7, 1, 2, 3]);
 }
 
-fn test2() {}
+fn test2() {
+    println!("\ntest2 start, bubble sort");
+    let mut v = vec![3, 2, 5, 1, 4];
+    println!("v = {:?}", v);
+
+    let mut i = 0;
+    while i < v.len() {
+        let mut j = v.len() - 1;
+        while j > i {
+            if v[j - 1] > v[j] {
+                let t = v[j - 1];
+                v[j - 1] = v[j];
+                v[j] = t;
+            }
+            j -= 1;
+        }
+        i += 1;
+    }
+
+    println!("after sort, v = {:?}", v);
+}
