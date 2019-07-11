@@ -63,6 +63,9 @@ impl Tweet {
     }
 }
 
+/*
+notify1, notify2, notify3 实现相同的行为。
+*/
 pub fn notify1(item: &impl Summary) {
     println!("notify1 Breaking news! {}", item.summarize());
 }
@@ -78,6 +81,9 @@ where
     println!("notify3 Breaking news! {}", item.summarize());
 }
 
+/*
+notify4, notify5, notify6 实现相同的行为。
+*/
 pub fn notify4(item: &(impl Summary + fmt::Display)) {
     println!("notify4 Breaking news! {}", item);
 }
@@ -93,6 +99,9 @@ where
     println!("notify6 Breaking news! {}", item);
 }
 
+/*
+bignotify1, bignotify2, bignotify3 实现相同的行为。
+*/
 pub fn bignotify1(
     T: &(impl Summary + fmt::Display),
     U: &(impl Summary + fmt::Display + fmt::Debug),
