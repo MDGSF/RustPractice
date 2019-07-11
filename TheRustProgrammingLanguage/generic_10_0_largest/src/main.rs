@@ -22,6 +22,10 @@ fn largest_char(list: &[char]) -> char {
     largest
 }
 
+/*
+只有实现了 PartialOrd 这个 trait 的泛型才能够比较大小。
+只有实现了 Copy trait 的泛型才能在使用赋值 = 的时候执行按位拷贝。
+*/
 fn largest1<T>(list: &[T]) -> T
 where
     T: PartialOrd + Copy,
@@ -37,6 +41,10 @@ where
     largest
 }
 
+/*
+泛型 T 如果不实现 Copy trait，也可以用 Clone trait。
+Clone trait 则必须显示调用 clone() 函数。
+*/
 fn largest2<T>(list: &[T]) -> T
 where
     T: PartialOrd + Clone,
@@ -45,9 +53,8 @@ where
 
     let mut i = 0;
     while i < list.len() {
-        let item = list[i].clone();
-        if item > largest {
-            largest = item.clone();
+        if list[i] > largest {
+            largest = list[i].clone();
         }
         i += 1;
     }
@@ -55,6 +62,11 @@ where
     largest
 }
 
+/*
+也可以修改返回值为对数组中变量的租借，这样的话，根据生命周期自动标注规则，
+返回值的生命周期必须和输入的数组一样长。
+而 largest1 和 largest2 中的返回值则和输入参数没有任何关系。
+*/
 fn largest3<T>(list: &[T]) -> &T
 where
     T: PartialOrd,
