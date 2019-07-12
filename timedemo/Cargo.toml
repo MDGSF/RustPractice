@@ -1,5 +1,5 @@
 [package]
-name = "flowout"
+name = "timedemo"
 version = "0.1.0"
 authors = ["huangjian <1342042894@qq.com>"]
 edition = "2018"
@@ -7,16 +7,3 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ws = "*"
-
-serde = "1.0"
-serde_derive = "1.0"
-rmp = "0.8.7"
-rmp-serialize = "0.8.0"
-rmp-serde = "0.13.7"
-rmpv = "0.4.0"
-rustc-serialize = "0.3.24"
-
-structopt = "0.2.10"
-
-chrono = "0.4"
