@@ -1,5 +1,6 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
+//#![allow(dead_code)]
+//#![allow(unused_imports)]
+//Serializer::with(wr, StructMapWriter)
 
 extern crate ws;
 
@@ -15,18 +16,16 @@ extern crate structopt;
 
 extern crate chrono;
 
-use std::any::Any;
 use std::collections::HashMap;
 
-use rmp_serde::{encode::StructMapWriter, Deserializer, Serializer};
+use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 
 use structopt::StructOpt;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Result, Sender};
 
-use chrono::prelude::*;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 
 #[derive(Debug, Deserialize)]
 struct TMessage {
@@ -90,7 +89,8 @@ impl<'a> Handler for Client<'a> {
             println!("send subscribe topic {:?}", sub);
 
             let mut buf = Vec::new();
-            sub.serialize(&mut Serializer::new(&mut buf)).unwrap();
+            let mut se = Serializer::new_named(&mut buf);
+            sub.serialize(&mut se).unwrap();
 
             self.out.send(buf)?;
         }
