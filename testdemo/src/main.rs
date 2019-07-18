@@ -1,18 +1,25 @@
-use std::time::Duration;
-use std::time::SystemTime;
+trait DemoTrait<T> {
+    fn demotrait(&self) -> T;
+}
+
+struct Student {
+    name: String,
+}
+
+impl<T> DemoTrait<T> for Student
+where
+    T: Default,
+{
+    fn demotrait(&self) -> T {
+        let a: T = Default::default();
+        a
+    }
+}
 
 fn main() {
-    let time = SystemTime::UNIX_EPOCH + Duration::from_secs(1);
-
-    let time2 = Duration::new(1, 2);
-    let () = time2;
-
-    match SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
-        Ok(n) => println!(
-            "1970-01-01 00:00:00 UTC was {} seconds, {} nano ago!",
-            n.as_secs(),
-            n.subsec_nanos()
-        ),
-        Err(_) => panic!("SystemTime before UNIX EPOCH!"),
-    }
+    let s = Student {
+        name: "".to_string(),
+    };
+    let a: i32 = s.demotrait();
+    println!("a = {}", a);
 }
