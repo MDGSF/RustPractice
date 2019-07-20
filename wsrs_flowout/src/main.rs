@@ -2,36 +2,27 @@
 //#![allow(unused_imports)]
 //Serializer::with(wr, StructMapWriter)
 
+extern crate chrono;
+extern crate structopt;
 extern crate ws;
 
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
-extern crate rmp_serde as rmps;
-extern crate rmp_serialize;
-extern crate rmpv;
-extern crate rustc_serialize;
-
-extern crate structopt;
-
-extern crate chrono;
-
+use chrono::{TimeZone, Utc};
 use std::collections::HashMap;
-
-use rmp_serde::{Deserializer, Serializer};
-use serde::{Deserialize, Serialize};
-use std::io::Cursor;
-
 use structopt::StructOpt;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Result, Sender};
 
-use chrono::{TimeZone, Utc};
+use rust_msgpack::decode;
+use rust_msgpack::encode;
+use value::from_value::FromValue;
+use value::into_value::IntoValue;
+use value::value::Value;
+use value_derive::*;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, FromValue, IntoValue)]
 struct TMessage {
     source: String,
     topic: String,
-    data: Vec<u8>,
+    data: Value,
     time: i64,
 }
 
@@ -52,9 +43,8 @@ impl<'a> Client<'a> {
     }
 
     fn handle_binary_message(&mut self, data: &[u8]) {
-        let cur = Cursor::new(&data[..]);
-        let mut de = Deserializer::new(cur);
-        let msg: TMessage = Deserialize::deserialize(&mut de).unwrap();
+        let v = decode::decode_to_value(&data).unwrap();
+        let msg: TMessage = v.from_value();
 
         let dt = Utc.timestamp(
             (msg.time / 1000000) as i64,
@@ -62,11 +52,7 @@ impl<'a> Client<'a> {
         );
         print!(
             "[{}] {:?} @{}: \"{}\" {}\n",
-            self.message_counter,
-            dt,
-            msg.source,
-            msg.topic,
-            msg.data.len(),
+            self.message_counter, dt, msg.source, msg.topic, msg.data,
         );
     }
 }
@@ -82,25 +68,20 @@ impl<'a> Handler for Client<'a> {
         let topics: Vec<&str> = subs.split(',').collect();
         for &topic in topics.iter() {
             let mut sub = HashMap::new();
-            sub.insert("source", "flowout".to_string());
-            sub.insert("topic", "subscribe".to_string());
-            sub.insert("data", topic.to_string());
+            sub.insert("source".to_string(), "flowout".to_string());
+            sub.insert("topic".to_string(), "subscribe".to_string());
+            sub.insert("data".to_string(), topic.to_string());
 
             println!("send subscribe topic {:?}", sub);
 
-            let mut buf = Vec::new();
-            let mut se = Serializer::new_named(&mut buf);
-            sub.serialize(&mut se).unwrap();
-
-            self.out.send(buf)?;
+            let bin = encode::encode(&sub).unwrap();
+            self.out.send(bin)?;
         }
 
         Ok(())
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        println!("Got message: {}", msg);
-
         self.message_counter += 1;
 
         self.handle_message(msg);
