@@ -15,7 +15,7 @@ use std::io::Cursor;
 fn main() {
     println!("Hello, world!");
     test1();
-    test2();
+    //test2();
 }
 
 #[derive(Debug, PartialEq, RustcEncodable, RustcDecodable)]
@@ -58,7 +58,7 @@ struct Human {
     test: String,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Default, Debug, PartialEq, Deserialize, Serialize)]
 struct Human2 {
     //#[serde(rename = "age")]
     #[serde(default)]
@@ -71,6 +71,8 @@ struct Human2 {
 
     #[serde(default, rename = "addr")]
     addr: String,
+
+    lala: String,
 }
 
 fn test1() {
@@ -81,7 +83,11 @@ fn test1() {
         name: "John".into(),
         test: "test".into(),
     };
-    val.serialize(&mut Serializer::new(&mut buf)).unwrap();
+    val.serialize(&mut Serializer::with(
+        &mut buf,
+        rmps::encode::StructMapWriter,
+    ))
+    .unwrap();
     println!("buf = {:?}", buf);
 
     let cur = Cursor::new(&buf[..]);
