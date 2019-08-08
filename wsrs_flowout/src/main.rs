@@ -85,7 +85,7 @@ impl<'a> Handler for Client<'a> {
         let topics: Vec<&str> = subs.split(',').collect();
         for &topic in topics.iter() {
             let mut sub = HashMap::new();
-            sub.insert("source", "flowout");
+            sub.insert("source", &self.opt.name[..]);
             sub.insert("topic", "subscribe");
             sub.insert("data", topic);
 
@@ -123,8 +123,17 @@ struct Opt {
     #[structopt(short = "t", long = "sub", default_value = "*")]
     sub: String,
 
+    #[structopt(short = "e", long = "text", default_value = "")]
+    text: String,
+
+    #[structopt(short = "m", long = "msgpack", default_value = "")]
+    msgpack: String,
+
     #[structopt(short = "l", long = "limit", default_value = "0")]
     limit: i32,
+
+    #[structopt(short = "n", long = "name", default_value = "flowout")]
+    name: String,
 }
 
 fn main() {
