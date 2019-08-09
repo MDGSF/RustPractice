@@ -1,15 +1,18 @@
-//#![allow(dead_code)]
-//#![allow(unused_imports)]
-//Serializer::with(wr, StructMapWriter)
-
 extern crate chrono;
 extern crate structopt;
+extern crate tar;
 extern crate ws;
 
-use chrono::{TimeZone, Utc};
 use std::cmp::min;
 use std::collections::HashMap;
+use std::fs;
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+
+use chrono::{TimeZone, Utc};
 use structopt::StructOpt;
+use tar::{Builder, Header};
 use ws::{connect, CloseCode, Handler, Handshake, Message, Result, Sender};
 
 use rust_msgpack::decode;
@@ -31,7 +34,13 @@ struct TMessage {
 struct Client<'a> {
     out: Sender,
     opt: &'a Opt,
+    sub_topics: Vec<&'a str>,
+    text_topics: Vec<&'a str>,
+    msgpack_topics: Vec<&'a str>,
+    save_topics: Vec<&'a str>,
     message_counter: i32,
+    has_made_save_dir: bool,
+    tar_builder: Option<Builder<File>>,
 }
 
 impl<'a> Client<'a> {
@@ -63,7 +72,26 @@ impl<'a> Client<'a> {
             msg.data.len(),
         );
 
-        self.show_binary_message(&msg);
+        if utils::utils::is_string_wildcard_match_array(&msg.topic, &self.text_topics) {
+            self.show_text_message(&msg);
+        } else if utils::utils::is_string_wildcard_match_array(&msg.topic, &self.msgpack_topics) {
+            self.show_msgpack_message(&msg);
+        } else {
+            self.show_binary_message(&msg);
+        }
+
+        if utils::utils::is_string_wildcard_match_array(&msg.topic, &self.save_topics) {
+            self.save_message(&msg);
+        }
+    }
+
+    fn show_text_message(&mut self, msg: &TMessage) {
+        println!("{}", String::from_utf8(msg.data.clone()).unwrap());
+    }
+
+    fn show_msgpack_message(&mut self, msg: &TMessage) {
+        let v = decode::decode_to_value(&msg.data).unwrap();
+        println!("{}", v);
     }
 
     fn show_binary_message(&mut self, msg: &TMessage) {
@@ -71,6 +99,46 @@ impl<'a> Client<'a> {
         let slice_size = min(total_size, 1024);
         let result = hex::hexcode::hexdump(&msg.data[..slice_size]);
         println!("{}", result);
+    }
+
+    fn save_message(&mut self, msg: &TMessage) {
+        let filename = format!("flowout.{}-{}-{}.dat", msg.time, msg.source, msg.topic);
+
+        if self.opt.save_dir.len() != 0 {
+            self.save_message_to_dir(msg, &filename);
+        }
+
+        if self.opt.save_tar.len() != 0 {
+            self.save_message_to_tar(msg, &filename);
+        }
+    }
+
+    fn save_message_to_dir(&mut self, msg: &TMessage, filename: &str) {
+        if !self.has_made_save_dir {
+            fs::create_dir_all(&self.opt.save_dir).unwrap();
+        }
+
+        let filenamewithpath = Path::new(&self.opt.save_dir).join(filename);
+        let mut file = File::create(filenamewithpath).unwrap();
+        file.write_all(&msg.data).unwrap();
+    }
+
+    fn save_message_to_tar(&mut self, msg: &TMessage, filename: &str) {
+        match &mut self.tar_builder {
+            Some(ar) => {
+                let mut header = Header::new_gnu();
+                header.set_size(msg.data.len() as u64);
+                header.set_cksum();
+                header.set_mode(0o644);
+                ar.append_data(&mut header, filename, &msg.data[..])
+                    .unwrap();
+            }
+            None => {
+                let file = File::create(&self.opt.save_tar).unwrap();
+                let ar = Builder::new(file);
+                self.tar_builder = Some(ar);
+            }
+        }
     }
 }
 
@@ -81,9 +149,7 @@ impl<'a> Handler for Client<'a> {
             self.opt.server
         );
 
-        let subs = self.opt.sub.clone();
-        let topics: Vec<&str> = subs.split(',').collect();
-        for &topic in topics.iter() {
+        for &topic in self.sub_topics.iter() {
             let mut sub = HashMap::new();
             sub.insert("source", &self.opt.name[..]);
             sub.insert("topic", "subscribe");
@@ -117,21 +183,39 @@ impl<'a> Handler for Client<'a> {
     about = "Used to subscribe data from libflow server."
 )]
 struct Opt {
+    /// specify the server
     #[structopt(short = "s", long = "server", default_value = "127.0.0.1:24012")]
     server: String,
 
-    #[structopt(short = "t", long = "sub", default_value = "*")]
+    /// specify the topics to subscribe
+    #[structopt(long = "sub", default_value = "*")]
     sub: String,
 
-    #[structopt(short = "e", long = "text", default_value = "")]
+    /// specify the topics to print as text
+    #[structopt(long = "text", default_value = "")]
     text: String,
 
-    #[structopt(short = "m", long = "msgpack", default_value = "")]
+    /// specify the topics to print as msgpack
+    #[structopt(long = "msgpack", default_value = "")]
     msgpack: String,
 
+    /// specify the topics to save
+    #[structopt(long = "save", default_value = "")]
+    save: String,
+
+    /// specify where to save the messages
+    #[structopt(long = "save-dir", default_value = "")]
+    save_dir: String,
+
+    /// save the messages into a tar file
+    #[structopt(long = "save-tar", default_value = "")]
+    save_tar: String,
+
+    /// specify how many messages to recv
     #[structopt(short = "l", long = "limit", default_value = "0")]
     limit: i32,
 
+    /// specify the client's name
     #[structopt(short = "n", long = "name", default_value = "flowout")]
     name: String,
 }
@@ -142,7 +226,13 @@ fn main() {
     connect(serveraddr, |out| Client {
         out: out,
         opt: &opt,
+        sub_topics: opt.sub.split(',').collect(),
+        text_topics: opt.text.split(',').collect(),
+        msgpack_topics: opt.msgpack.split(',').collect(),
+        save_topics: opt.save.split(',').collect(),
         message_counter: 0,
+        has_made_save_dir: false,
+        tar_builder: None,
     })
     .unwrap();
 }

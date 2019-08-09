@@ -21,3 +21,4 @@ chrono = "0.4"
 rust_msgpack = { version = "0.1.0", path = "./rust-msgpack/rust_msgpack" }
 value_derive = { path = "./rust-msgpack/value_derive" }
 value = { path = "./rust-msgpack/value" }
+tar = "0.4"
