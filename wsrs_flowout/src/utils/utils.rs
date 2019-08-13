@@ -218,4 +218,28 @@ mod tests {
         let result = is_string_wildcard_match_array(s, array);
         assert_eq!(result, true);
     }
+
+    #[test]
+    fn test_route_1() {
+        let pattern = "/api/v1/users/*";
+        let path = "/api/v1/users/123";
+        let result = wildcard_match(pattern, path);
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_route_2() {
+        let pattern = "/api/v1/drawings/*/shapes/*";
+        let path = "/api/v1/drawings/123/shapes/333";
+        let result = wildcard_match(pattern, path);
+        assert_eq!(result, true);
+    }
+
+    #[test]
+    fn test_route_3() {
+        let pattern = "/api/v1/drawings/*/shapes/*";
+        let path = "/api/v1/drawings/123";
+        let result = wildcard_match(pattern, path);
+        assert_eq!(result, false);
+    }
 }
