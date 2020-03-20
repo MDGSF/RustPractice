@@ -5,6 +5,8 @@ use tide::{Request, Response};
 
 #[async_std::main]
 async fn main() -> Result<(), std::io::Error> {
+  env_logger::init();
+
   let mut app = tide::new();
 
   app.middleware(tide::middleware::RequestLogger::new());
@@ -28,7 +30,7 @@ async fn main() -> Result<(), std::io::Error> {
       Response::new(200).body_json(&counter).unwrap()
     });
 
-  app.at("fib/:n").get(fibCtrl);
+  app.at("fib/:n").get(fib_ctrl);
 
   let mut inner_gates = tide::new();
   inner_gates
@@ -112,7 +114,7 @@ fn fib(n: usize) -> usize {
   return f2;
 }
 
-async fn fibCtrl(req: Request<()>) -> String {
+async fn fib_ctrl(req: Request<()>) -> String {
   use std::time::Instant;
   let n: usize = req.param("n").unwrap_or(0);
   let start = Instant::now();
