@@ -1,0 +1,25 @@
+[package]
+name = "du"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-recursion = "0.3.0"
+
+[dependencies.futures]
+version = "0.3.1"
+
+[dependencies.async-std]
+version = "1.0.0"
+# features = ["attributes"]
+
+[[bin]]
+name = "du_sync"
+path = "src/du_sync.rs"
+
+[[bin]]
+name = "du"
+path = "src/du_async.rs"
