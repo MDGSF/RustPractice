@@ -2,4 +2,6 @@
 members = [
 	"runpv22e",
 	"pxsem",
+	"pxshm",
+	"rshm",
 ]
