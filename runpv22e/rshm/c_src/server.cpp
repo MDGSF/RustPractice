@@ -13,21 +13,30 @@ int main() {
   signal(SIGHUP, sigterm);
   signal(SIGINT, sigterm);
 
-  SRshm *rshm = rshm_init("rshmtest");
+  SRshm *rshm = rshm_create("rshmtest");
+  if (NULL == rshm) {
+    return 1;
+  }
+
   while (g_iRunning) {
     size_t len = 10240;
     char acBuf[10240] = {0};
-    int iRet = rshm_read(rshm, acBuf, len, 2);
+    int iRet = rshm_read(rshm, acBuf, len, 5);
     if (iRet <= 0) {
       printf("iRet = %d\n", iRet);
       continue;
     }
     printf("read %d bytes\n", iRet);
+    // int iCrCount = 1;
     // for (int i = 0; i < iRet; i++) {
-    //   printf("%d ", (unsigned char)acBuf[i]);
+    //   printf("%05d ", (unsigned char)acBuf[i]);
+    //   if (iCrCount++ % 10 == 0) {
+    //     printf("\n");
+    //   }
     // }
-    // printf("\n");
+    // printf("\n\n\n");
   }
 
-  rshm_release(rshm);
+  // rshm_release(rshm);
+  return 0;
 }

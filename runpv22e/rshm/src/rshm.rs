@@ -31,7 +31,7 @@ pub struct SRshm {
 }
 
 impl SRshm {
-  fn init(name: *const libc::c_char) -> Option<SRshm> {
+  fn new(name: *const libc::c_char) -> Option<SRshm> {
     unsafe {
       assert!(!name.is_null());
 
@@ -42,12 +42,22 @@ impl SRshm {
         ptr: ptr::null_mut(),
       };
 
-      libc::shm_unlink(name);
-
-      let fd = libc::shm_open(name, libc::O_RDWR | libc::O_CREAT | libc::O_EXCL, FILE_MODE);
+      let mut shm_already_exist = false;
+      let mut fd = libc::shm_open(name, libc::O_RDWR | libc::O_CREAT | libc::O_EXCL, FILE_MODE);
       if fd == -1 {
-        eprintln!("shm_open error");
-        return None;
+        let errno = *libc::__errno_location();
+        if errno == libc::EEXIST {
+          shm_already_exist = true;
+          fd = libc::shm_open(name, libc::O_RDWR, FILE_MODE);
+          if fd == -1 {
+            let errno = *libc::__errno_location();
+            eprintln!("shm_open error, shm_already_exist = {}, errno = {}", shm_already_exist, errno);
+            return None;
+          }
+        } else {
+          eprintln!("shm_open error, shm_already_exist = {}, errno = {}", shm_already_exist, errno);
+          return None;
+        }
       }
 
       let ptr = libc::mmap(
@@ -66,62 +76,29 @@ impl SRshm {
       let ptr = ptr as *mut SMemory;
       let ptr = &mut *ptr;
 
-      libc::ftruncate(fd, mem::size_of::<SMemory>() as i64);
+      if !shm_already_exist {
+        libc::ftruncate(fd, mem::size_of::<SMemory>() as i64);
+      }
       libc::close(fd);
 
-      for index in 0..NMESG {
-        ptr.msgoff[index] = index * MESGSIZE;
+      if !shm_already_exist {
+        for index in 0..NMESG {
+          ptr.msgoff[index] = index * MESGSIZE;
+        }
+
+        for index in 0..NMESG {
+          ptr.msgsize[index] = 0;
+        }
+
+        ptr.nput = 0;
+        ptr.nget = 0;
+        ptr.noverflow = 0;
+
+        libc::sem_init(&mut ptr.mutex, 1, 1);
+        libc::sem_init(&mut ptr.nempty, 1, NMESG as u32);
+        libc::sem_init(&mut ptr.nstored, 1, 0);
+        libc::sem_init(&mut ptr.noverflowmutex, 1, 1);
       }
-
-      for index in 0..NMESG {
-        ptr.msgsize[index] = 0;
-      }
-
-      ptr.nput = 0;
-      ptr.nget = 0;
-      ptr.noverflow = 0;
-
-      libc::sem_init(&mut ptr.mutex, 1, 1);
-      libc::sem_init(&mut ptr.nempty, 1, NMESG as u32);
-      libc::sem_init(&mut ptr.nstored, 1, 0);
-      libc::sem_init(&mut ptr.noverflowmutex, 1, 1);
-
-      Some(rshm)
-    }
-  }
-
-  fn open(name: *const libc::c_char) -> Option<SRshm> {
-    unsafe {
-      assert!(!name.is_null());
-
-      let cname = CStr::from_ptr(name).to_str().unwrap();
-
-      let mut rshm = SRshm {
-        name: String::from(cname),
-        ptr: ptr::null_mut(),
-      };
-
-      let fd = libc::shm_open(name, libc::O_RDWR, FILE_MODE);
-      if fd == -1 {
-        eprintln!("shm_open error");
-        return None;
-      }
-
-      let ptr = libc::mmap(
-        ptr::null_mut(),
-        mem::size_of::<SMemory>(),
-        libc::PROT_READ | libc::PROT_WRITE,
-        libc::MAP_SHARED,
-        fd,
-        0,
-      );
-      if ptr == libc::MAP_FAILED {
-        eprintln!("mmap error");
-        return None;
-      }
-      rshm.ptr = ptr;
-
-      libc::close(fd);
 
       Some(rshm)
     }
@@ -129,32 +106,25 @@ impl SRshm {
 }
 
 #[no_mangle]
-pub extern "C" fn rshm_init(name: *const libc::c_char) -> *mut SRshm {
-  if let Some(rshm) = SRshm::init(name) {
+pub extern "C" fn rshm_create(name: *const libc::c_char) -> *mut SRshm {
+  if let Some(rshm) = SRshm::new(name) {
     return Box::into_raw(Box::new(rshm));
   }
   return ptr::null_mut();
 }
 
 #[no_mangle]
-pub extern "C" fn rshm_open(name: *const libc::c_char) -> *mut SRshm {
-  if let Some(rshm) = SRshm::open(name) {
-    return Box::into_raw(Box::new(rshm));
-  }
-  return ptr::null_mut();
-}
-
-#[no_mangle]
-pub extern "C" fn rshm_release(rshm: *mut SRshm) -> libc::c_int {
+pub extern "C" fn rshm_release(prshm: *mut SRshm) -> libc::c_int {
   unsafe {
-    assert!(!rshm.is_null());
-    let rshm = &mut *rshm;
+    assert!(!prshm.is_null());
+    let rshm = &mut *prshm;
     let cname = CString::new(rshm.name.clone()).unwrap();
     let cname = cname.as_ptr();
     if libc::shm_unlink(cname) == -1 {
       println!("shm_unlink error");
       return -1;
     }
+    Box::from_raw(prshm);
     0
   }
 }

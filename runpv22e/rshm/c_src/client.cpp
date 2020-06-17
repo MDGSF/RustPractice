@@ -24,22 +24,40 @@ static inline int64_t iclock64(void)
 int main() {
   printf("rshm client\n");
 
-  SRshm *rshm = rshm_open("rshmtest");
+  SRshm *rshm = rshm_create("rshmtest");
   size_t len = 10240;
-  char acBuf[10240] = {0};
+
+  char acBuf1[10240] = {0};
   for (int i = 0; i < 10240; i++) {
-    acBuf[i] = i;
+    acBuf1[i] = i % 256;
   }
+
+  char acBuf2[10240] = {0};
+  for (int i = 0; i < 10240; i++) {
+    acBuf2[i] = 256 - i % 256;
+  }
+
+  char acBuf3[10240] = {0};
+  for (int i = 0; i < 10240; i++) {
+    acBuf3[i] = 18;
+  }
+
+  int iBufIndex = 0;
+  char* apcBuf[3] = {0};
+  apcBuf[0] = acBuf1;
+  apcBuf[1] = acBuf2;
+  apcBuf[2] = acBuf3;
 
   int64_t start = iclock64();
 
   for (int i = 0; i < 10000; i++) {
-    int iRet = rshm_write(rshm, acBuf, len, 2);
+    iBufIndex = iBufIndex % 3;
+    int iRet = rshm_write(rshm, apcBuf[iBufIndex++], len, 5);
     if (iRet <= 0) {
       printf("iRet = %d\n", iRet);
       continue;
     }
-    // printf("write %d bytes\n", iRet);
+    printf("write %d bytes\n", iRet);
   }
 
   int64_t end = iclock64();
