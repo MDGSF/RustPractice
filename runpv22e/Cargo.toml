@@ -4,4 +4,5 @@ members = [
 	"pxsem",
 	"pxshm",
 	"rshm",
+	"rshm1",
 ]
