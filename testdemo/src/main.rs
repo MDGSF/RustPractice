@@ -1,9 +1,5 @@
-fn main() {
-  let mut created = false;
-  test(&mut created);
-  println!("created = {}", created);
-}
+use std::ptr;
 
-fn test(created: &mut bool) {
-  *created = true;
+fn main() {
+  println!("created = {}", 1);
 }
