@@ -44,14 +44,14 @@ fn main() -> Result<(), Box<dyn Error>> {
       Ok(data) => {
         println!("data = {}", data);
         for &client in &*clients_1.lock().unwrap() {
-          let msg_to_send = [9; 9];
+          let msg_to_send = data.to_ne_bytes();
           match server_socket_1
             .lock()
             .unwrap()
             .send_to(&msg_to_send, client)
           {
             Ok(bytes_send) => {
-              assert_eq!(bytes_send, 9);
+              // assert_eq!(bytes_send, 9);
               println!("sent {:?} -> {:?} bytes", msg_to_send, bytes_send);
             }
             Err(err) => {
