@@ -1,0 +1,31 @@
+[package]
+name = "ffi_callc_demo_4"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2018"
+build = "build.rs"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[[bin]]
+name = "r01"
+path = "src/r01.rs"
+
+[[bin]]
+name = "r01-1"
+path = "src/r01-1.rs"
+
+[[bin]]
+name = "r01-2"
+path = "src/r01-2.rs"
+
+[[bin]]
+name = "r02"
+path = "src/r02.rs"
+
+[[bin]]
+name = "r03"
+path = "src/r03.rs"
