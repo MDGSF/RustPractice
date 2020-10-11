@@ -2,5 +2,3 @@
 edition = "2018"
 name = "anagram"
 version = "0.0.0"
-
-
