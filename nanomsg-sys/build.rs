@@ -6,8 +6,10 @@ use std::path::PathBuf;
 fn main() {
   println!("cargo:rustc-link-lib=nanomsg");
 
-  if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
-    println!("cargo:rustc-link-search=./libnanomsg/libnanomsg-1.1.5/lib/linux/x64");
+  if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+    println!("cargo:rustc-link-search=./libnanomsg/libnanomsg-1.1.5/lib/linux/x86_64");
+  } else if cfg!(all(target_os = "linux", target_arch = "arm")) {
+    println!("cargo:rustc-link-search=./libnanomsg/libnanomsg-1.1.5/lib/linux/arm");
   }
 
   // Tell cargo to invalidate the built crate whenever the wrapper changes
