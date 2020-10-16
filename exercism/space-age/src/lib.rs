@@ -11,80 +11,28 @@ impl From<u64> for Duration {
 }
 
 pub trait Planet {
-  fn years_during(d: &Duration) -> f64;
-}
-
-pub struct Mercury;
-pub struct Venus;
-pub struct Earth;
-pub struct Mars;
-pub struct Jupiter;
-pub struct Saturn;
-pub struct Uranus;
-pub struct Neptune;
-
-impl Planet for Mercury {
+  fn period() -> f64;
   fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_MERCURY_SEC
-  }
-}
-impl Planet for Venus {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_VENUS_SEC
-  }
-}
-impl Planet for Earth {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_EARTH_SEC
-  }
-}
-impl Planet for Mars {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_MARS_SEC
-  }
-}
-impl Planet for Jupiter {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_JUPITER_SEC
-  }
-}
-impl Planet for Saturn {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_SATURN_SEC
-  }
-}
-impl Planet for Uranus {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_URANUS_SEC
-  }
-}
-impl Planet for Neptune {
-  fn years_during(d: &Duration) -> f64 {
-    d.0 / ORBITAL_PERIOD_NEPTUNE_SEC
+    d.0 / Self::period()
   }
 }
 
-const ORBITAL_PERIOD_MERCURY_YEAR: f64 = 0.2408467;
-const ORBITAL_PERIOD_VENUS_YEAR: f64 = 0.61519726;
-const ORBITAL_PERIOD_EARTH_YEAR: f64 = 1.0;
-const ORBITAL_PERIOD_MARS_YEAR: f64 = 1.8808158;
-const ORBITAL_PERIOD_JUPITER_YEAR: f64 = 11.862615;
-const ORBITAL_PERIOD_SATURN_YEAR: f64 = 29.447498;
-const ORBITAL_PERIOD_URANUS_YEAR: f64 = 84.016846;
-const ORBITAL_PERIOD_NEPTUNE_YEAR: f64 = 164.79132;
+macro_rules! planet {
+  ($n:ident, $p:expr) => {
+    pub struct $n;
+    impl Planet for $n {
+      fn period() -> f64 {
+        31557600_f64 * $p
+      }
+    }
+  };
+}
 
-const ORBITAL_PERIOD_EARTH_SEC: f64 = 31557600_f64;
-const ORBITAL_PERIOD_MERCURY_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_MERCURY_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
-const ORBITAL_PERIOD_VENUS_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_VENUS_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
-const ORBITAL_PERIOD_MARS_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_MARS_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
-const ORBITAL_PERIOD_JUPITER_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_JUPITER_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
-const ORBITAL_PERIOD_SATURN_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_SATURN_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
-const ORBITAL_PERIOD_URANUS_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_URANUS_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
-const ORBITAL_PERIOD_NEPTUNE_SEC: f64 =
-  ORBITAL_PERIOD_EARTH_SEC * ORBITAL_PERIOD_NEPTUNE_YEAR / ORBITAL_PERIOD_EARTH_YEAR;
+planet!(Earth, 1.0);
+planet!(Mercury, 0.2408467);
+planet!(Venus, 0.61519726);
+planet!(Mars, 1.8808158);
+planet!(Jupiter, 11.862615);
+planet!(Saturn, 29.447498);
+planet!(Uranus, 84.016846);
+planet!(Neptune, 164.79132);
