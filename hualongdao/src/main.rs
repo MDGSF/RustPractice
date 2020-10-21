@@ -8,6 +8,8 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::fmt;
+use std::ops::Add;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 struct InputContext {
@@ -18,34 +20,93 @@ struct InputContext {
 }
 
 #[derive(Debug, Clone, Eq)]
-struct Context {
-  position: Point,
+struct BFSContext {
+  position: UPoint,
   manhattan_distance: usize,
-  path: Vec<Point>,
+  path: Vec<UPoint>,
 }
 
-impl Ord for Context {
+impl Ord for BFSContext {
   fn cmp(&self, other: &Self) -> Ordering {
     other.manhattan_distance.cmp(&self.manhattan_distance)
   }
 }
 
-impl PartialOrd for Context {
+impl PartialOrd for BFSContext {
   fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
     Some(self.cmp(other))
   }
 }
 
-impl PartialEq for Context {
+impl PartialEq for BFSContext {
   fn eq(&self, other: &Self) -> bool {
     self.manhattan_distance == other.manhattan_distance
   }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-struct Point {
+struct UPoint {
   row: usize,
   col: usize,
+}
+
+impl UPoint {
+  pub fn newi(point: IPoint) -> UPoint {
+    UPoint {
+      row: point.row as usize,
+      col: point.col as usize,
+    }
+  }
+}
+
+impl Add<Direction> for UPoint {
+  type Output = IPoint;
+
+  fn add(self, other: Direction) -> IPoint {
+    IPoint {
+      row: self.row as isize + other.row,
+      col: self.col as isize + other.col,
+    }
+  }
+}
+
+impl Add<&Direction> for UPoint {
+  type Output = IPoint;
+
+  fn add(self, other: &Direction) -> IPoint {
+    IPoint {
+      row: self.row as isize + other.row,
+      col: self.col as isize + other.col,
+    }
+  }
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
+struct IPoint {
+  row: isize,
+  col: isize,
+}
+
+impl Add<Direction> for IPoint {
+  type Output = Self;
+
+  fn add(self, other: Direction) -> Self {
+    Self {
+      row: self.row + other.row,
+      col: self.col + other.col,
+    }
+  }
+}
+
+impl Add<&Direction> for IPoint {
+  type Output = Self;
+
+  fn add(self, other: &Direction) -> Self {
+    Self {
+      row: self.row + other.row,
+      col: self.col + other.col,
+    }
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -94,277 +155,223 @@ fn swap_node(
   board[new_row][new_col] = temp;
 }
 
-fn is_valid_position(row: usize, col: usize, size: usize) -> bool {
-  let size = size as usize;
-  row < size && col < size
-}
-
-fn find_zero_point(board: &Vec<Vec<usize>>) -> Point {
+fn find_zero_point(board: &Vec<Vec<usize>>) -> UPoint {
   for row in 0..board.len() {
     for col in 0..board[row].len() {
       if board[row][col] == 0 {
-        return Point { row, col };
+        return UPoint { row, col };
       }
     }
   }
-  Point { row: 0, col: 0 }
+  UPoint { row: 0, col: 0 }
 }
 
-fn find_fixed_point(board: &Vec<Vec<usize>>, fixed: usize) -> Point {
-  for row in 0..board.len() {
-    for col in 0..board[row].len() {
-      if board[row][col] == fixed {
-        return Point { row, col };
-      }
-    }
-  }
-  Point { row: 0, col: 0 }
-}
-
-fn result_string(size: usize) -> String {
-  let mut result = String::new();
-  let end = (size * size) as usize;
-  for i in 1..end {
-    result.push_str(&i.to_string());
-    result.push_str(",");
-  }
-  result.push_str("0,");
-  result
-}
-
-fn board_to_string(board: &Vec<Vec<usize>>) -> String {
-  let mut result = String::new();
-  for rows in board.iter() {
-    for item in rows.iter() {
-      result.push_str(&item.to_string());
-      result.push_str(",");
-    }
-  }
-  result
-}
-
-fn string_to_board(board_str: &str, size: usize) -> Vec<Vec<usize>> {
-  let temp: Vec<usize> = board_str
-    .split(',')
-    .filter(|x| x.len() > 0)
-    .map(|x| x.parse::<usize>().unwrap())
-    .collect();
-  let mut result = vec![vec![0_usize; size]; size];
-  let mut row = 0;
-  let mut col = 0;
-  for v in temp {
-    result[row][col] = v;
-    col += 1;
-    if col == size {
-      row += 1;
-      col = 0;
-    }
-  }
-  result
-}
-
-fn calc_manhattan_distance(board: &Vec<Vec<usize>>) -> usize {
-  let mut result: usize = 0;
-  for row in 0..board.len() {
-    for col in 0..board[row].len() {
-      if board[row][col] > 0 {
-        let expect_point = number_to_point(board[row][col], board.len());
-        let cur_distance = (row as isize - expect_point.row as isize).abs()
-          + (col as isize - expect_point.col as isize).abs();
-        result += cur_distance as usize;
-      }
-    }
-  }
-  result
-}
-
-fn calc_two_point_manhattan_distance(p1: Point, p2: Point) -> usize {
+fn calc_two_point_manhattan_distance(p1: UPoint, p2: UPoint) -> usize {
   (p1.row as isize - p2.row as isize).abs() as usize
     + (p1.col as isize - p2.col as isize).abs() as usize
 }
 
-fn number_to_point(num: usize, size: usize) -> Point {
+fn number_to_point(num: usize, size: usize) -> UPoint {
   let row = (num - 1) / size;
   let col = (num - 1) % size;
-  Point { row, col }
+  UPoint { row, col }
 }
 
-fn find_num_point(board: &Vec<Vec<usize>>, num: usize) -> Point {
+fn find_num_point(board: &Vec<Vec<usize>>, num: usize) -> UPoint {
   for row in 0..board.len() {
     for col in 0..board[row].len() {
       if board[row][col] == num {
-        return Point { row, col };
+        return UPoint { row, col };
       }
     }
   }
-  Point { row: 0, col: 0 }
+  UPoint { row: 0, col: 0 }
 }
 
-fn pretty_show_board(board: &Vec<Vec<usize>>) {
-  for row in 0..board.len() {
-    print!("[ ");
-    for col in 0..board[row].len() {
-      print!("{} ", board[row][col]);
+struct Solution {
+  board: Vec<Vec<usize>>,        // board 是个正方形
+  fixed: usize,                  // 固定点的数字
+  size: usize,                   // board 的边长
+  stage: usize,                  // 第几关
+  fixed_point: UPoint,           // fixed 的行列位置
+  max_number: usize,             // 最大数字 size * size
+  fixed_points: HashSet<UPoint>, // 当前不能被移动的点
+  zero_point: UPoint,            // 空格的位置
+  result: Vec<String>,           // 保存最后的结果，移动命令，L R U D
+}
+
+impl fmt::Display for Solution {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut result = String::new();
+    result.push_str(&format!("\nstage: {}\n", self.stage));
+    result.push_str(&format!(
+      "size: {} * {} = {}\n",
+      self.size, self.size, self.max_number,
+    ));
+    for row in 0..self.board.len() {
+      result.push_str("[ ");
+      for col in 0..self.board[row].len() {
+        result.push_str(&format!("{} ", self.board[row][col]));
+      }
+      result.push_str("]\n");
     }
-    println!("]");
+
+    result.push_str(&format!("fixed: {}, {:?}\n", self.fixed, self.fixed_point));
+    result.push_str(&format!("fixed_points: {:?}\n", self.fixed_points));
+    result.push_str(&format!("zero_point: {:?}\n", self.zero_point));
+    result.push_str(&format!("result: {:?}\n", self.result));
+    write!(f, "{}", result)
   }
 }
 
-fn find_num_path_bfs(
-  board: &mut Vec<Vec<usize>>,
-  num: usize,
-  src_point: Point,
-  dst_point: Point,
-  fixed_points: &HashSet<Point>,
-) -> Vec<Point> {
-  let size = board.len();
-
-  let context = Context {
-    position: src_point,
-    manhattan_distance: calc_two_point_manhattan_distance(src_point, dst_point),
-    path: vec![],
-  };
-
-  let size = board.len();
-  let mut s = HashSet::new();
-  s.insert(src_point);
-
-  let mut heap = BinaryHeap::new();
-  heap.push(context);
-
-  while !heap.is_empty() {
-    let context = heap.pop().unwrap();
-    let point = context.position;
-
-    let old_row = point.row;
-    let old_col = point.col;
-    for direction in DIRECTIONS.iter() {
-      let new_row = (old_row as isize + direction.row) as usize;
-      let new_col = (old_col as isize + direction.col) as usize;
-      let new_point = Point {
-        row: new_row,
-        col: new_col,
-      };
-
-      if new_point == dst_point {
-        let mut new_path = context.path.clone();
-        new_path.push(new_point);
-        return new_path;
-      }
-
-      if is_valid_position(new_row, new_col, size) && !s.contains(&new_point) {
-        let mut new_path = context.path.clone();
-        new_path.push(new_point);
-        let new_context = Context {
-          position: new_point,
-          manhattan_distance: calc_two_point_manhattan_distance(new_point, dst_point),
-          path: new_path,
-        };
-        heap.push(new_context);
-      }
+impl Solution {
+  pub fn new(input_context: &InputContext) -> Solution {
+    let fixed_point = number_to_point(input_context.fixed, input_context.size);
+    let max_number = input_context.size * input_context.size;
+    let mut fixed_points: HashSet<UPoint> = HashSet::new();
+    fixed_points.insert(fixed_point);
+    let zero_point = find_num_point(&input_context.board, 0);
+    Solution {
+      board: input_context.board.clone(),
+      fixed: input_context.fixed,
+      size: input_context.size,
+      stage: input_context.stage,
+      fixed_point,
+      max_number,
+      fixed_points,
+      zero_point,
+      result: Vec::new(),
     }
   }
 
-  vec![]
-}
-
-fn move_number_to_dst(
-  board: &mut Vec<Vec<usize>>,
-  num: usize,
-  src_point: Point,
-  dst_point: Point,
-  fixed_points: &HashSet<Point>,
-) {
-  if src_point == dst_point {
-    println!("num = {}, no need to move", num);
-    return;
+  fn process(&mut self) {
+    self.process_no_fix();
   }
 
-  let num_paths = find_num_path_bfs(board, num, src_point, dst_point, fixed_points);
-  println!("num_paths = {:?}", num_paths);
-}
+  fn process_no_fix(&mut self) {
+    for num in 1..self.max_number {
+      self.move_number(num);
 
-fn move_basic_number(
-  board: &mut Vec<Vec<usize>>,
-  num: usize,
-  size: usize,
-  fixed_points: &HashSet<Point>,
-) {
-  let src_point = find_num_point(&board, num);
-  let dst_point = number_to_point(num, size);
-  move_number_to_dst(board, num, src_point, dst_point, fixed_points);
-}
-
-fn move_row_last_number(
-  board: &mut Vec<Vec<usize>>,
-  num: usize,
-  size: usize,
-  fixed_points: &HashSet<Point>,
-) {
-  let src_point = find_num_point(&board, num);
-  let mut dst_point = number_to_point(num, size);
-  dst_point.row += 1;
-  move_number_to_dst(board, num, src_point, dst_point, fixed_points);
-
-  // TODO
-}
-
-fn move_col_last_number(
-  board: &mut Vec<Vec<usize>>,
-  num: usize,
-  size: usize,
-  fixed_points: &HashSet<Point>,
-) {
-  let src_point = find_num_point(&board, num);
-  let mut dst_point = number_to_point(num, size);
-  dst_point.col += 1;
-  move_number_to_dst(board, num, src_point, dst_point, fixed_points);
-
-  // TODO
-}
-
-fn move_number(
-  board: &mut Vec<Vec<usize>>,
-  num: usize,
-  size: usize,
-  fixed_points: &HashSet<Point>,
-) {
-  let zero = find_zero_point(&board);
-  println!("num = {}", num);
-
-  let num_point = number_to_point(num, size);
-
-  if num % size == 0 {
-    move_row_last_number(board, num, size, fixed_points);
-  } else if num_point.row == size - 1 {
-    move_col_last_number(board, num, size, fixed_points);
-  } else {
-    move_basic_number(board, num, size, fixed_points);
+      let num_point = number_to_point(num, self.size);
+      self.fixed_points.insert(num_point);
+    }
   }
-}
 
-fn process_no_fix(input_context: &InputContext) {
-  let mut board = input_context.board.clone();
-  let size = board.len();
-  pretty_show_board(&board);
+  fn move_number(&mut self, num: usize) {
+    let zero = find_zero_point(&self.board);
+    println!("num = {}", num);
 
-  let mut fixed_points: HashSet<Point> = HashSet::new();
-  let max_number = input_context.size * input_context.size;
-  for num in 1..max_number {
-    move_number(&mut board, num, input_context.size, &fixed_points);
+    let num_point = number_to_point(num, self.size);
 
-    let num_point = number_to_point(num, size);
-    fixed_points.insert(num_point);
+    if num % self.size == 0 {
+      self.move_row_last_number(num);
+    } else if num_point.row == self.size - 1 {
+      self.move_col_last_number(num);
+    } else {
+      self.move_basic_number(num);
+    }
   }
-}
 
-fn process(input_context: &InputContext) {
-  println!("{:#?}", input_context);
+  fn move_row_last_number(&mut self, num: usize) {
+    let src_point = find_num_point(&self.board, num);
+    let mut dst_point = number_to_point(num, self.size);
+    dst_point.row += 1;
+    self.move_number_to_dst(num, src_point, dst_point);
 
-  let fixed_point = number_to_point(input_context.fixed, input_context.size);
-  println!("fixed_point = {:?}", fixed_point);
+    // TODO
+  }
 
-  process_no_fix(input_context);
+  fn move_col_last_number(&mut self, num: usize) {
+    let src_point = find_num_point(&self.board, num);
+    let mut dst_point = number_to_point(num, self.size);
+    dst_point.col += 1;
+    self.move_number_to_dst(num, src_point, dst_point);
+
+    // TODO
+  }
+
+  fn move_basic_number(&mut self, num: usize) {
+    let src_point = find_num_point(&self.board, num);
+    let dst_point = number_to_point(num, self.size);
+    self.move_number_to_dst(num, src_point, dst_point);
+  }
+
+  fn move_number_to_dst(&mut self, num: usize, src_point: UPoint, dst_point: UPoint) {
+    if src_point == dst_point {
+      println!("num = {}, no need to move", num);
+      return;
+    }
+
+    let num_paths = self.find_num_path_bfs(num, src_point, dst_point);
+    if num_paths.is_none() {
+      println!("{}", self);
+      panic!("find special case");
+    }
+    println!("num_paths = {:?}", num_paths);
+
+    for path_point in num_paths {}
+  }
+
+  fn find_num_path_bfs(
+    &mut self,
+    num: usize,
+    src_point: UPoint,
+    dst_point: UPoint,
+  ) -> Option<Vec<UPoint>> {
+    let context = BFSContext {
+      position: src_point,
+      manhattan_distance: calc_two_point_manhattan_distance(src_point, dst_point),
+      path: vec![],
+    };
+
+    let mut s = HashSet::new();
+    s.insert(src_point);
+
+    let mut heap = BinaryHeap::new();
+    heap.push(context);
+
+    while !heap.is_empty() {
+      let context = heap.pop().unwrap();
+      let point = context.position;
+
+      for direction in DIRECTIONS.iter() {
+        let new_ipoint = point + direction;
+        if !self.is_valid_ipoint(&new_ipoint) {
+          continue;
+        }
+
+        let new_upoint = UPoint::newi(new_ipoint);
+
+        if new_upoint == dst_point {
+          let mut new_path = context.path.clone();
+          new_path.push(new_upoint);
+          return Some(new_path);
+        }
+
+        if !s.contains(&new_upoint) && !self.is_fixed_upoint(&new_upoint) {
+          let mut new_path = context.path.clone();
+          new_path.push(new_upoint);
+          let new_context = BFSContext {
+            position: new_upoint,
+            manhattan_distance: calc_two_point_manhattan_distance(new_upoint, dst_point),
+            path: new_path,
+          };
+          heap.push(new_context);
+        }
+      }
+    }
+
+    None
+  }
+
+  fn is_valid_ipoint(&self, point: &IPoint) -> bool {
+    let size = self.size as isize;
+    point.row >= 0 && point.row < size && point.col >= 0 && point.col < size
+  }
+
+  fn is_fixed_upoint(&self, point: &UPoint) -> bool {
+    self.fixed_points.contains(point)
+  }
 }
 
 fn main() -> Result<()> {
@@ -374,7 +381,9 @@ fn main() -> Result<()> {
 
   for (i, context) in contexts.iter().enumerate() {
     if i == 0 {
-      process(&context);
+      let mut solution = Solution::new(&context);
+      println!("solutin: {}", solution);
+      solution.process();
       break;
     }
   }
