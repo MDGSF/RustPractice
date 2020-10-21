@@ -184,83 +184,89 @@ fn number_to_point(num: usize, size: usize) -> Point {
   Point { row, col }
 }
 
-fn pretty_show_board(board: &Vec<Vec<usize>>) {
-  for row in 0..board.len() {
-    print!("[ ");
-    for col in 0..board[row].len() {
-      print!("{} ", board[row][col]);
-    }
-    println!("]");
-  }
-}
+fn search_astar(input_context: &InputContext) {
+  println!("{:#?}", input_context);
 
-fn find_num_point(board: &Vec<Vec<usize>>, num: usize) -> Point {
-  for row in 0..board.len() {
-    for col in 0..board[row].len() {
-      if board[row][col] == num {
-        return Point { row, col };
+  let board_size = input_context.size as usize;
+  let fixed_point = find_fixed_point(&input_context.board, input_context.fixed);
+
+  let result_bs = result_string(input_context.size);
+  println!("result bs = {}", result_bs);
+
+  let bs = board_to_string(&input_context.board);
+
+  let context = Context {
+    manhattan_distance: calc_manhattan_distance(&input_context.board),
+    board_str: bs.clone(),
+    path: vec![],
+  };
+
+  let mut m = HashSet::new();
+  m.insert(bs);
+
+  let mut heap = BinaryHeap::new();
+  heap.push(context);
+
+  while !heap.is_empty() {
+    let context = heap.pop().unwrap();
+    let bs = &context.board_str;
+    let mut board = string_to_board(&bs, board_size);
+    let zero = find_zero_point(&board);
+    let path = &context.path;
+    //println!("bs = {}", bs);
+    //println!("context = {:?}", context);
+    //println!("board = {:?}", board);
+    //println!("zero = {:?}", zero);
+    //println!("path = {:?}", path);
+
+    let old_row = zero.row;
+    let old_col = zero.col;
+    for direction in DIRECTIONS.iter() {
+      let new_row = (old_row as isize + direction.row) as usize;
+      let new_col = (old_col as isize + direction.col) as usize;
+      if is_valid_position(new_row, new_col, input_context.size)
+        && (new_row != fixed_point.row || new_col != fixed_point.col)
+      {
+        swap_node(&mut board, old_row, old_col, new_row, new_col);
+
+        let new_bs = board_to_string(&board);
+        if new_bs == result_bs {
+          println!("found result");
+
+          let mut new_path = path.clone();
+          new_path.push(direction.name.to_string());
+
+          println!("board = {:?}", board);
+          println!("path = {:?}", new_path.join(""));
+
+          return;
+        }
+        if !m.contains(&new_bs) {
+          let mut new_path = path.clone();
+          new_path.push(direction.name.to_string());
+          let new_context = Context {
+            manhattan_distance: calc_manhattan_distance(&board),
+            board_str: new_bs.clone(),
+            path: new_path,
+          };
+          m.insert(new_bs.clone());
+          heap.push(new_context);
+        }
+
+        swap_node(&mut board, old_row, old_col, new_row, new_col);
       }
     }
   }
-  Point { row: 0, col: 0 }
 }
 
-fn move_number_to_dst(board: &mut Vec<Vec<usize>>, num: usize, src_point: Point, dst_point: Point) {
-}
-
-fn move_basic_number(board: &mut Vec<Vec<usize>>, num: usize, size: usize) {
-  let src_point = find_num_point(&board, num);
-  let dst_point = number_to_point(num, size);
-  move_number_to_dst(board, num, src_point, dst_point);
-}
-
-fn move_line_last_number(board: &mut Vec<Vec<usize>>, num: usize, size: usize) {
-  let src_point = find_num_point(&board, num);
-  let mut dst_point = number_to_point(num, size);
-  dst_point.row += 1;
-  move_number_to_dst(board, num, src_point, dst_point);
-
-  // TODO
-}
-
-fn move_number(board: &mut Vec<Vec<usize>>, num: usize, size: usize) {
-  let zero = find_zero_point(&board);
-  println!("num = {}", num);
-
-  if num % size == 0 {
-    move_line_last_number(board, num, size);
-  } else {
-    move_basic_number(board, num, size);
-  }
-}
-
-fn process_no_fix(input_context: &InputContext) {
-  let mut board = input_context.board.clone();
-  pretty_show_board(&board);
-
-  let max_number = input_context.size * input_context.size;
-  for num in 1..max_number {
-    move_number(&mut board, num, input_context.size);
-  }
-}
-
-fn process(input_context: &InputContext) {
-  println!("{:#?}", input_context);
-
-  let fixed_point = number_to_point(input_context.fixed, input_context.size);
-  println!("fixed_point = {:?}", fixed_point);
-
-  process_no_fix(input_context);
-}
-
-fn main() -> Result<()> {
+fn astar() -> Result<()> {
   let data = std::fs::read_to_string("levels.json")?;
 
   let contexts: Vec<InputContext> = serde_json::from_str(&data)?;
 
   for (i, context) in contexts.iter().enumerate() {
-    if i == 0 {
-      process(&context);
+    if i == 1 {
+      search_astar(&context);
       break;
     }
   }
