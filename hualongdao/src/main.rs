@@ -203,7 +203,7 @@ struct Solution {
 impl fmt::Display for Solution {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     let mut result = String::new();
-    result.push_str(&format!("\nstage: {}\n", self.stage));
+    result.push_str(&format!("stage: {}\n", self.stage));
     result.push_str(&format!(
       "size: {} * {} = {}\n",
       self.size, self.size, self.max_number,
@@ -259,7 +259,10 @@ impl Solution {
 
   fn move_number(&mut self, num: usize) {
     let zero = find_zero_point(&self.board);
-    println!("num = {}", num);
+
+    println!("\n----------------");
+    println!("move start num = {}", num);
+    println!("{}", self);
 
     let num_point = number_to_point(num, self.size);
 
@@ -275,6 +278,10 @@ impl Solution {
   fn move_row_last_number(&mut self, num: usize) {
     let src_point = find_num_point(&self.board, num);
     let mut dst_point = number_to_point(num, self.size);
+    if src_point == dst_point {
+      println!("num = {}, no need to move", num);
+      return;
+    }
     dst_point.row += 1;
     self.move_number_to_dst(num, src_point, dst_point);
 
@@ -284,6 +291,10 @@ impl Solution {
   fn move_col_last_number(&mut self, num: usize) {
     let src_point = find_num_point(&self.board, num);
     let mut dst_point = number_to_point(num, self.size);
+    if src_point == dst_point {
+      println!("num = {}, no need to move", num);
+      return;
+    }
     dst_point.col += 1;
     self.move_number_to_dst(num, src_point, dst_point);
 
@@ -293,23 +304,52 @@ impl Solution {
   fn move_basic_number(&mut self, num: usize) {
     let src_point = find_num_point(&self.board, num);
     let dst_point = number_to_point(num, self.size);
-    self.move_number_to_dst(num, src_point, dst_point);
-  }
-
-  fn move_number_to_dst(&mut self, num: usize, src_point: UPoint, dst_point: UPoint) {
     if src_point == dst_point {
       println!("num = {}, no need to move", num);
       return;
     }
+    self.move_number_to_dst(num, src_point, dst_point);
+  }
+
+  fn move_number_to_dst(&mut self, num: usize, src_point: UPoint, dst_point: UPoint) {
+    println!("move {} from {:?} to {:?}", num, src_point, dst_point);
 
     let num_paths = self.find_num_path_bfs(num, src_point, dst_point);
     if num_paths.is_none() {
       println!("{}", self);
       panic!("find special case");
     }
+    let num_paths = num_paths.unwrap();
     println!("num_paths = {:?}", num_paths);
 
-    for path_point in num_paths {}
+    let mut num_point = src_point;
+    for path_point in num_paths {
+      self.fixed_points.insert(num_point);
+
+      // 先把 0 移动到要移动的数字前面
+      let zero_paths = self.find_num_path_bfs(0, self.zero_point, path_point);
+      if zero_paths.is_none() {
+        println!("{}", self);
+        panic!("find special case");
+      }
+      let zero_paths = zero_paths.unwrap();
+
+      self.fixed_points.remove(&num_point);
+
+      self.move_zero_with_paths(zero_paths);
+
+      // 把数字向前移动一步
+      self.swap_with_zero(num_point);
+      num_point = path_point;
+
+      println!("one step, {}", self);
+    }
+  }
+
+  fn move_zero_with_paths(&mut self, zero_paths: Vec<UPoint>) {
+    for &path_point in zero_paths.iter() {
+      self.swap_with_zero(path_point);
+    }
   }
 
   fn find_num_path_bfs(
@@ -372,6 +412,17 @@ impl Solution {
   fn is_fixed_upoint(&self, point: &UPoint) -> bool {
     self.fixed_points.contains(point)
   }
+
+  fn swap_node(&mut self, old_point: UPoint, new_point: UPoint) {
+    let temp = self.board[old_point.row][old_point.col];
+    self.board[old_point.row][old_point.col] = self.board[new_point.row][new_point.col];
+    self.board[new_point.row][new_point.col] = temp;
+  }
+
+  fn swap_with_zero(&mut self, point: UPoint) {
+    self.swap_node(self.zero_point, point);
+    self.zero_point = point;
+  }
 }
 
 fn main() -> Result<()> {
@@ -382,7 +433,7 @@ fn main() -> Result<()> {
   for (i, context) in contexts.iter().enumerate() {
     if i == 0 {
       let mut solution = Solution::new(&context);
-      println!("solutin: {}", solution);
+      println!("solutin:\n{}", solution);
       solution.process();
       break;
     }
