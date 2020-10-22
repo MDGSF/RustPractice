@@ -5,9 +5,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::VecDeque;
 use std::fmt;
 use std::ops::Add;
 
@@ -143,29 +141,6 @@ lazy_static! {
   };
 }
 
-fn swap_node(
-  board: &mut Vec<Vec<usize>>,
-  old_row: usize,
-  old_col: usize,
-  new_row: usize,
-  new_col: usize,
-) {
-  let temp = board[old_row][old_col];
-  board[old_row][old_col] = board[new_row][new_col];
-  board[new_row][new_col] = temp;
-}
-
-fn find_zero_point(board: &Vec<Vec<usize>>) -> UPoint {
-  for row in 0..board.len() {
-    for col in 0..board[row].len() {
-      if board[row][col] == 0 {
-        return UPoint { row, col };
-      }
-    }
-  }
-  UPoint { row: 0, col: 0 }
-}
-
 fn calc_two_point_manhattan_distance(p1: UPoint, p2: UPoint) -> usize {
   (p1.row as isize - p2.row as isize).abs() as usize
     + (p1.col as isize - p2.col as isize).abs() as usize
@@ -197,7 +172,11 @@ struct Solution {
   max_number: usize,             // 最大数字 size * size
   fixed_points: HashSet<UPoint>, // 当前不能被移动的点
   zero_point: UPoint,            // 空格的位置
-  result: Vec<String>,           // 保存最后的结果，移动命令，L R U D
+  result: Vec<String>,           // 保存最后的结果，空格的移动命令，L R U D
+  start_row: usize,
+  start_col: usize,
+  end_row: usize,
+  end_col: usize,
 }
 
 impl fmt::Display for Solution {
@@ -211,7 +190,7 @@ impl fmt::Display for Solution {
     for row in 0..self.board.len() {
       result.push_str("[ ");
       for col in 0..self.board[row].len() {
-        result.push_str(&format!("{} ", self.board[row][col]));
+        result.push_str(&format!("{:>2} ", self.board[row][col]));
       }
       result.push_str("]\n");
     }
@@ -241,6 +220,10 @@ impl Solution {
       fixed_points,
       zero_point,
       result: Vec::new(),
+      start_row: 0,
+      start_col: 0,
+      end_row: input_context.size - 1,
+      end_col: input_context.size - 1,
     }
   }
 
@@ -250,16 +233,51 @@ impl Solution {
 
   fn process_no_fix(&mut self) {
     for num in 1..self.max_number {
+      self.check_special_case();
       self.move_number(num);
+    }
+  }
 
-      let num_point = number_to_point(num, self.size);
-      self.fixed_points.insert(num_point);
+  fn check_special_case(&mut self) {
+    self.specail_1();
+  }
+
+  fn specail_1(&mut self) {
+    if self.fixed_point.row == self.start_row + 1 && self.fixed_point.col == self.start_col + 1 {
+      let first_num = self.fixed - 1;
+      let third_num = self.fixed - self.size;
+      let second_num = third_num - 1;
+
+      let first_dst_point = UPoint {
+        row: self.fixed_point.row,
+        col: self.fixed_point.col + 1,
+      };
+      let second_dst_point = UPoint {
+        row: first_dst_point.row + 1,
+        col: first_dst_point.col,
+      };
+      let third_dst_point = UPoint {
+        row: first_dst_point.row + 2,
+        col: first_dst_point.col,
+      };
+
+      self.move_number_to_dst(first_num, first_dst_point);
+      self.move_number_to_dst(second_num, second_dst_point);
+      self.move_number_to_dst(third_num, third_dst_point);
+
+      let zero_dst = UPoint {
+        row: first_dst_point.row - 1,
+        col: first_dst_point.col,
+      };
+      let temp_fixed = vec![first_dst_point, second_dst_point, third_dst_point];
+      self.move_zero_to_dst_with_temp_fixed(zero_dst, temp_fixed);
+      self.swap_with_zero(first_dst_point);
+      self.swap_with_zero(second_dst_point);
+      self.swap_with_zero(third_dst_point);
     }
   }
 
   fn move_number(&mut self, num: usize) {
-    let zero = find_zero_point(&self.board);
-
     println!("\n----------------");
     println!("move start num = {}", num);
     println!("{}", self);
@@ -273,32 +291,42 @@ impl Solution {
     } else {
       self.move_basic_number(num);
     }
+
+    self.fixed_points.insert(num_point);
   }
 
   fn move_row_last_number(&mut self, num: usize) {
     let src_point = find_num_point(&self.board, num);
-    let mut dst_point = number_to_point(num, self.size);
+    let dst_point = number_to_point(num, self.size);
     if src_point == dst_point {
       println!("num = {}, no need to move", num);
       return;
     }
-    dst_point.row += 1;
-    self.move_number_to_dst(num, src_point, dst_point);
+    let mut pre_dst_point = dst_point;
+    pre_dst_point.col += 1;
+    self.move_number_from_src_to_dst(num, src_point, pre_dst_point);
 
     // TODO
+    if self.zero_point == dst_point {
+      self.swap_with_zero(pre_dst_point);
+    }
   }
 
   fn move_col_last_number(&mut self, num: usize) {
     let src_point = find_num_point(&self.board, num);
-    let mut dst_point = number_to_point(num, self.size);
+    let dst_point = number_to_point(num, self.size);
     if src_point == dst_point {
       println!("num = {}, no need to move", num);
       return;
     }
-    dst_point.col += 1;
-    self.move_number_to_dst(num, src_point, dst_point);
+    let mut pre_dst_point = dst_point;
+    pre_dst_point.col += 1;
+    self.move_number_from_src_to_dst(num, src_point, pre_dst_point);
 
     // TODO
+    if self.zero_point == dst_point {
+      self.swap_with_zero(pre_dst_point);
+    }
   }
 
   fn move_basic_number(&mut self, num: usize) {
@@ -308,11 +336,21 @@ impl Solution {
       println!("num = {}, no need to move", num);
       return;
     }
-    self.move_number_to_dst(num, src_point, dst_point);
+    self.move_number_from_src_to_dst(num, src_point, dst_point);
   }
 
-  fn move_number_to_dst(&mut self, num: usize, src_point: UPoint, dst_point: UPoint) {
-    println!("move {} from {:?} to {:?}", num, src_point, dst_point);
+  fn move_number_to_dst(&mut self, num: usize, dst_point: UPoint) {
+    let src_point = find_num_point(&self.board, num);
+    self.move_number_from_src_to_dst(num, src_point, dst_point);
+  }
+
+  fn move_number_from_src_to_dst(&mut self, num: usize, src_point: UPoint, dst_point: UPoint) {
+    if src_point == dst_point {
+      println!("num = {}, no need to move", num);
+      return;
+    } else {
+      println!("move {} from {:?} to {:?}", num, src_point, dst_point);
+    }
 
     let num_paths = self.find_num_path_bfs(num, src_point, dst_point);
     if num_paths.is_none() {
@@ -320,30 +358,61 @@ impl Solution {
       panic!("find special case");
     }
     let num_paths = num_paths.unwrap();
-    println!("num_paths = {:?}", num_paths);
+    // println!("num_paths = {:?}", num_paths);
 
     let mut num_point = src_point;
     for path_point in num_paths {
-      self.fixed_points.insert(num_point);
-
       // 先把 0 移动到要移动的数字前面
-      let zero_paths = self.find_num_path_bfs(0, self.zero_point, path_point);
-      if zero_paths.is_none() {
-        println!("{}", self);
-        panic!("find special case");
+      if self.zero_point != path_point {
+        self.fixed_points.insert(num_point);
+        let zero_paths = self.find_num_path_bfs(0, self.zero_point, path_point);
+        if zero_paths.is_none() {
+          println!("{}", self);
+          panic!("find special case");
+        }
+        let zero_paths = zero_paths.unwrap();
+        self.fixed_points.remove(&num_point);
+
+        self.move_zero_with_paths(zero_paths);
       }
-      let zero_paths = zero_paths.unwrap();
-
-      self.fixed_points.remove(&num_point);
-
-      self.move_zero_with_paths(zero_paths);
 
       // 把数字向前移动一步
       self.swap_with_zero(num_point);
       num_point = path_point;
 
-      println!("one step, {}", self);
+      // println!("one step, {}", self);
     }
+  }
+
+  fn move_zero_to_dst_with_temp_fixed(&mut self, dst_point: UPoint, temp_fixed: Vec<UPoint>) {
+    if self.zero_point == dst_point {
+      return;
+    }
+
+    for &point in temp_fixed.iter() {
+      self.fixed_points.insert(point);
+    }
+
+    self.move_zero_to_dst(dst_point);
+
+    for point in temp_fixed.iter() {
+      self.fixed_points.remove(&point);
+    }
+  }
+
+  fn move_zero_to_dst(&mut self, dst_point: UPoint) {
+    if self.zero_point == dst_point {
+      return;
+    }
+
+    let zero_paths = self.find_num_path_bfs(0, self.zero_point, dst_point);
+    if zero_paths.is_none() {
+      println!("{}", self);
+      panic!("find special case");
+    }
+    let zero_paths = zero_paths.unwrap();
+
+    self.move_zero_with_paths(zero_paths);
   }
 
   fn move_zero_with_paths(&mut self, zero_paths: Vec<UPoint>) {
@@ -354,7 +423,7 @@ impl Solution {
 
   fn find_num_path_bfs(
     &mut self,
-    num: usize,
+    _num: usize,
     src_point: UPoint,
     dst_point: UPoint,
   ) -> Option<Vec<UPoint>> {
@@ -389,6 +458,7 @@ impl Solution {
         }
 
         if !s.contains(&new_upoint) && !self.is_fixed_upoint(&new_upoint) {
+          s.insert(new_upoint);
           let mut new_path = context.path.clone();
           new_path.push(new_upoint);
           let new_context = BFSContext {
@@ -420,8 +490,23 @@ impl Solution {
   }
 
   fn swap_with_zero(&mut self, point: UPoint) {
+    self.calc_result(point);
     self.swap_node(self.zero_point, point);
     self.zero_point = point;
+  }
+
+  fn calc_result(&mut self, point: UPoint) {
+    for direction in DIRECTIONS.iter() {
+      let ipoint = self.zero_point + direction;
+      let upoint = UPoint::newi(ipoint);
+      if upoint == point {
+        self.result.push(direction.name.to_string());
+      }
+    }
+  }
+
+  pub fn get_result(&self) -> String {
+    self.result.join("")
   }
 }
 
@@ -431,10 +516,12 @@ fn main() -> Result<()> {
   let contexts: Vec<InputContext> = serde_json::from_str(&data)?;
 
   for (i, context) in contexts.iter().enumerate() {
-    if i == 0 {
+    if i == 1 {
       let mut solution = Solution::new(&context);
       println!("solutin:\n{}", solution);
       solution.process();
+      println!("end:\n{}", solution);
+      println!("result = {}", solution.get_result());
       break;
     }
   }
