@@ -11,15 +11,15 @@ impl Solution {
       let third_num = self.fixed - self.size;
       let second_num = third_num - 1;
 
-      let first_dst_point = UPoint {
+      let first_dst_point = Point {
         row: self.fixed_point.row,
         col: self.fixed_point.col + 1,
       };
-      let second_dst_point = UPoint {
+      let second_dst_point = Point {
         row: first_dst_point.row + 1,
         col: first_dst_point.col,
       };
-      let third_dst_point = UPoint {
+      let third_dst_point = Point {
         row: first_dst_point.row + 2,
         col: first_dst_point.col,
       };
@@ -28,7 +28,7 @@ impl Solution {
       self.move_number_to_dst(second_num, second_dst_point);
       self.move_number_to_dst(third_num, third_dst_point);
 
-      let zero_dst = UPoint {
+      let zero_dst = Point {
         row: first_dst_point.row - 1,
         col: first_dst_point.col,
       };

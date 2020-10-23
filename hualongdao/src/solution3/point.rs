@@ -2,21 +2,21 @@ use super::*;
 use std::ops::Add;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct UPoint {
+pub struct Point {
   pub row: usize,
   pub col: usize,
 }
 
-impl UPoint {
-  pub fn newi(point: IPoint) -> UPoint {
-    UPoint {
+impl Point {
+  pub fn newi(point: IPoint) -> Point {
+    Point {
       row: point.row as usize,
       col: point.col as usize,
     }
   }
 }
 
-impl Add<Direction> for UPoint {
+impl Add<Direction> for Point {
   type Output = IPoint;
 
   fn add(self, other: Direction) -> IPoint {
@@ -27,7 +27,7 @@ impl Add<Direction> for UPoint {
   }
 }
 
-impl Add<&Direction> for UPoint {
+impl Add<&Direction> for Point {
   type Output = IPoint;
 
   fn add(self, other: &Direction) -> IPoint {

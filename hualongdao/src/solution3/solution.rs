@@ -5,9 +5,9 @@ use std::collections::HashSet;
 
 #[derive(Debug, Clone, Eq)]
 struct BFSContext {
-  position: UPoint,
+  position: Point,
   manhattan_distance: usize,
-  path: Vec<UPoint>,
+  path: Vec<Point>,
 }
 
 impl Ord for BFSContext {
@@ -29,26 +29,26 @@ impl PartialEq for BFSContext {
 }
 
 pub struct Solution {
-  pub board: Vec<Vec<usize>>,        // board 是个正方形
-  pub fixed: usize,                  // 固定点的数字
-  pub size: usize,                   // board 的边长
-  pub stage: usize,                  // 第几关
-  pub fixed_point: UPoint,           // fixed 的行列位置
-  pub max_number: usize,             // 最大数字 size * size
-  pub fixed_points: HashSet<UPoint>, // 当前不能被移动的点
-  pub zero_point: UPoint,            // 空格的位置
-  pub result: Vec<String>,           // 保存最后的结果，空格的移动命令，L R U D
-  pub start_row: usize,
-  pub start_col: usize,
-  pub end_row: usize,
-  pub end_col: usize,
+  pub(super) board: Vec<Vec<usize>>,       // board 是个正方形
+  pub(super) fixed: usize,                 // 固定点的数字
+  pub(super) size: usize,                  // board 的边长
+  pub(super) stage: usize,                 // 第几关
+  pub(super) fixed_point: Point,           // fixed 的行列位置
+  pub(super) max_number: usize,            // 最大数字 size * size
+  pub(super) fixed_points: HashSet<Point>, // 当前不能被移动的点
+  pub(super) zero_point: Point,            // 空格的位置
+  pub(super) result: Vec<String>,          // 保存最后的结果，空格的移动命令，L R U D
+  pub(super) start_row: usize,
+  pub(super) start_col: usize,
+  pub(super) end_row: usize,
+  pub(super) end_col: usize,
 }
 
 impl Solution {
   pub fn new(input_context: &InputContext) -> Solution {
     let fixed_point = number_to_square_point(input_context.fixed, input_context.size);
     let max_number = input_context.size * input_context.size;
-    let mut fixed_points: HashSet<UPoint> = HashSet::new();
+    let mut fixed_points: HashSet<Point> = HashSet::new();
     fixed_points.insert(fixed_point);
     let zero_point = find_num_point_in_board(&input_context.board, 0);
     Solution {
@@ -137,7 +137,7 @@ impl Solution {
     self.move_number_from_src_to_dst(num, src_point, dst_point);
   }
 
-  pub(crate) fn move_number_to_dst(&mut self, num: usize, dst_point: UPoint) {
+  pub(crate) fn move_number_to_dst(&mut self, num: usize, dst_point: Point) {
     let src_point = find_num_point_in_board(&self.board, num);
     self.move_number_from_src_to_dst(num, src_point, dst_point);
   }
@@ -145,8 +145,8 @@ impl Solution {
   pub(crate) fn move_number_from_src_to_dst(
     &mut self,
     num: usize,
-    src_point: UPoint,
-    dst_point: UPoint,
+    src_point: Point,
+    dst_point: Point,
   ) {
     if src_point == dst_point {
       println!("num = {}, no need to move", num);
@@ -178,8 +178,8 @@ impl Solution {
   // 并在移动的过程中把 temp_fixed 数组中的 point 设置为固定点
   pub(crate) fn move_zero_to_dst_with_temp_fixed(
     &mut self,
-    dst_point: UPoint,
-    temp_fixed: Vec<UPoint>,
+    dst_point: Point,
+    temp_fixed: Vec<Point>,
   ) {
     if self.zero_point == dst_point {
       return;
@@ -197,7 +197,7 @@ impl Solution {
   }
 
   // 把 self.zero_point 移动到 dst_point 的位置
-  pub(crate) fn move_zero_to_dst(&mut self, dst_point: UPoint) {
+  pub(crate) fn move_zero_to_dst(&mut self, dst_point: Point) {
     if self.zero_point == dst_point {
       return;
     }
@@ -213,7 +213,7 @@ impl Solution {
   }
 
   // 让 self.zero_point 沿着 zero_paths 移动
-  pub(crate) fn move_zero_with_paths(&mut self, zero_paths: Vec<UPoint>) {
+  pub(crate) fn move_zero_with_paths(&mut self, zero_paths: Vec<Point>) {
     for &path_point in zero_paths.iter() {
       self.swap_with_zero(path_point);
     }
@@ -225,9 +225,9 @@ impl Solution {
   pub(crate) fn find_path(
     &mut self,
     _num: usize,
-    src_point: UPoint,
-    dst_point: UPoint,
-  ) -> Option<Vec<UPoint>> {
+    src_point: Point,
+    dst_point: Point,
+  ) -> Option<Vec<Point>> {
     let context = BFSContext {
       position: src_point,
       manhattan_distance: calc_two_point_manhattan_distance(src_point, dst_point),
@@ -250,7 +250,7 @@ impl Solution {
           continue;
         }
 
-        let new_upoint = UPoint::newi(new_ipoint);
+        let new_upoint = Point::newi(new_ipoint);
 
         if new_upoint == dst_point {
           let mut new_path = context.path.clone();
@@ -282,29 +282,29 @@ impl Solution {
   }
 
   // 判断 point 是否是固定点
-  pub(crate) fn is_fixed_upoint(&self, point: &UPoint) -> bool {
+  pub(crate) fn is_fixed_upoint(&self, point: &Point) -> bool {
     self.fixed_points.contains(point)
   }
 
   // 交换 point1 和 point2 两个点的值
-  pub(crate) fn swap_node(&mut self, point1: UPoint, point2: UPoint) {
+  pub(crate) fn swap_node(&mut self, point1: Point, point2: Point) {
     swap_two_points(&mut self.board, point1, point2);
   }
 
   // 1. 交换 zero_point 和 point 的值
   // 2. 并更新 self.zero_point 的位置
   // 3. 记录 self.zero_point 移动的路径
-  pub(crate) fn swap_with_zero(&mut self, point: UPoint) {
+  pub(crate) fn swap_with_zero(&mut self, point: Point) {
     self.record_zero_point_move_poing(point);
     self.swap_node(self.zero_point, point);
     self.zero_point = point;
   }
 
   // 记录 self.zero_point 移动的路径
-  pub(crate) fn record_zero_point_move_poing(&mut self, point: UPoint) {
+  pub(crate) fn record_zero_point_move_poing(&mut self, point: Point) {
     for direction in DIRECTIONS.iter() {
       let ipoint = self.zero_point + direction;
-      let upoint = UPoint::newi(ipoint);
+      let upoint = Point::newi(ipoint);
       if upoint == point {
         self.result.push(direction.name.to_string());
       }
