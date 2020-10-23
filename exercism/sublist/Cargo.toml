@@ -1,6 +1,4 @@
 [package]
 edition = "2018"
-name = "anagram"
+name = "sublist"
 version = "0.0.0"
-
-
