@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Comparison {
   Equal,
   Sublist,
@@ -8,42 +8,39 @@ pub enum Comparison {
 
 pub fn sublist<T>(first_list: &[T], second_list: &[T]) -> Comparison
 where
-  T: PartialEq + Copy,
+  T: PartialEq,
 {
-  if first_list.len() > second_list.len() {
-    for k1 in 0..=(first_list.len() - second_list.len()) {
-      let mut success = true;
-      for (k2, &v2) in second_list.iter().enumerate() {
-        if v2 != first_list[k1 + k2] {
-          success = false;
-          break;
-        }
-      }
-      if success {
-        return Comparison::Superlist;
-      }
-    }
-  } else if first_list.len() < second_list.len() {
-    for k2 in 0..=(second_list.len() - first_list.len()) {
-      let mut success = true;
-      for (k1, &v1) in first_list.iter().enumerate() {
-        if v1 != second_list[k1 + k2] {
-          success = false;
-          break;
-        }
-      }
-      if success {
-        return Comparison::Sublist;
+  use Comparison::*;
+  match (first_list.len(), second_list.len()) {
+    (0, 0) => Equal,
+    (0, _) => Sublist,
+    (_, 0) => Superlist,
+    (m, n) if m > n => {
+      if first_list
+        .windows(n)
+        .any(|candidate| candidate == second_list)
+      {
+        Superlist
+      } else {
+        Unequal
       }
     }
-  } else {
-    for (k, &v) in first_list.iter().enumerate() {
-      if v != second_list[k] {
-        return Comparison::Unequal;
+    (m, n) if m < n => {
+      if second_list
+        .windows(m)
+        .any(|candidate| candidate == first_list)
+      {
+        Sublist
+      } else {
+        Unequal
       }
     }
-    return Comparison::Equal;
+    (_, _) => {
+      if first_list == second_list {
+        Equal
+      } else {
+        Unequal
+      }
+    }
   }
-
-  Comparison::Unequal
 }
