@@ -9,13 +9,8 @@ impl fmt::Display for Solution {
       "size: {} * {} = {}\n",
       self.size, self.size, self.max_number,
     ));
-    for row in 0..self.board.len() {
-      result.push_str("[ ");
-      for col in 0..self.board[row].len() {
-        result.push_str(&format!("{:>2} ", self.board[row][col]));
-      }
-      result.push_str("]\n");
-    }
+
+    result.push_str(&format!("{} ", self.board));
 
     result.push_str(&format!("fixed: {}, {:?}\n", self.fixed, self.fixed_point));
     result.push_str(&format!("fixed_points: {:?}\n", self.fixed_points));

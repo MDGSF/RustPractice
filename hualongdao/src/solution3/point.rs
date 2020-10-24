@@ -8,6 +8,9 @@ pub struct Point {
 }
 
 impl Point {
+  pub fn new(row: usize, col: usize) -> Point {
+    Point { row, col }
+  }
   pub fn newi(point: IPoint) -> Point {
     Point {
       row: point.row as usize,

@@ -29,7 +29,7 @@ impl PartialEq for BFSContext {
 }
 
 pub struct Solution {
-  pub(super) board: Vec<Vec<usize>>,       // board 是个正方形
+  pub(super) board: Board,                 // board 是个正方形
   pub(super) fixed: usize,                 // 固定点的数字
   pub(super) size: usize,                  // board 的边长
   pub(super) stage: usize,                 // 第几关
@@ -46,13 +46,19 @@ pub struct Solution {
 
 impl Solution {
   pub fn new(input_context: &InputContext) -> Solution {
-    let fixed_point = number_to_square_point(input_context.fixed, input_context.size);
+    let board = Board::new(input_context.board.clone());
+
+    let fixed_point = board.number_to_point(input_context.fixed);
+
+    let zero_point = board.find_num(0).unwrap();
+
     let max_number = input_context.size * input_context.size;
-    let mut fixed_points: HashSet<Point> = HashSet::new();
-    fixed_points.insert(fixed_point);
-    let zero_point = find_num_point_in_board(&input_context.board, 0);
+
+    let fixed_points: HashSet<Point> = HashSet::new();
+    //fixed_points.insert(fixed_point);
+
     Solution {
-      board: input_context.board.clone(),
+      board: board,
       fixed: input_context.fixed,
       size: input_context.size,
       stage: input_context.stage,
@@ -69,18 +75,88 @@ impl Solution {
   }
 
   pub fn process(&mut self) {
-    for num in 1..self.max_number {
-      self.check_special_case();
-      self.move_number(num);
+    loop {
+      if self.start_row >= self.end_row && self.start_col >= self.end_col {
+        break;
+      }
+
+      if self.start_row <= self.start_col {
+        info!("start process row = {}", self.start_row);
+        // 处理 start_row 这一行
+
+        // 一直从开始处理到倒数第 3 个数字
+        for col in self.start_col..=(self.end_col - 2) {
+          // num 是期望在点 [start_row, col] 这个位置上放置的数字
+          let num = self.board.point_to_number(Point::new(self.start_row, col));
+          // 把 num 数字移动到位置 [start_row, col] 这个位置上
+          self.move_number(num);
+        }
+
+        // 最后两个数字特殊处理
+        // last_2 是 start_row 这一行的倒数第二个数字
+        // last_1 是 start_row 这一行的最后一个数字
+        // x x x p1 p2
+        // x x x p3 p4
+        let p1 = Point::new(self.start_row, self.end_col - 1);
+        let p2 = Point::new(self.start_row, self.end_col);
+        let p3 = Point::new(self.start_row + 1, self.end_col - 1);
+        let p4 = Point::new(self.start_row + 1, self.end_col);
+
+        let last_2 = self.board.point_to_number(p1);
+        let last_1 = self.board.point_to_number(p2);
+
+        self.move_number_to_dst(last_2, p2);
+        self.move_number_to_dst(last_1, p4);
+        self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p4]);
+        self.move_zero_with_paths(vec![p2, p4]);
+
+        self.start_row += 1;
+      } else {
+        info!("start process col = {}", self.start_col);
+        // 处理 start_col 这一列
+
+        for row in self.start_row..=(self.end_row - 2) {
+          // num 是期望在点 [start_row, col] 这个位置上放置的数字
+          let num = self.board.point_to_number(Point::new(row, self.start_col));
+          // 把 num 数字移动到位置 [row, start_col] 这个位置上
+          self.move_number(num);
+        }
+
+        // 最后两个数字特殊处理
+        // last_2 是 start_col 这一列的倒数第二个数字
+        // last_1 是 start_col 这一列的最后一个数字
+        // x  x
+        // x  x
+        // x  x
+        // p1 p3
+        // p2 p4
+
+        let p1 = Point::new(self.end_row - 1, self.start_col);
+        let p2 = Point::new(self.end_row, self.start_col);
+        let p3 = Point::new(self.end_row - 1, self.start_col + 1);
+        let p4 = Point::new(self.end_row, self.start_col + 1);
+
+        let last_2 = self.board.point_to_number(p1);
+        let last_1 = self.board.point_to_number(p2);
+
+        self.move_number_to_dst(last_2, p2);
+        self.move_number_to_dst(last_1, p4);
+        self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p4]);
+        self.move_zero_with_paths(vec![p2, p4]);
+
+        self.start_col += 1;
+      }
+
+      info!("\n{}", self.board);
+
+      println!();
     }
   }
 
   pub(crate) fn move_number(&mut self, num: usize) {
-    println!("\n----------------");
-    println!("move start num = {}", num);
-    println!("{}", self);
+    info!("move start num = {}", num);
 
-    let num_point = number_to_square_point(num, self.size);
+    let num_point = self.board.number_to_point(num);
 
     if num % self.size == 0 {
       self.move_row_last_number(num);
@@ -94,10 +170,9 @@ impl Solution {
   }
 
   fn move_row_last_number(&mut self, num: usize) {
-    let src_point = find_num_point_in_board(&self.board, num);
-    let dst_point = number_to_square_point(num, self.size);
+    let src_point = self.board.find_num(num).unwrap();
+    let dst_point = self.board.number_to_point(num);
     if src_point == dst_point {
-      println!("num = {}, no need to move", num);
       return;
     }
     let mut pre_dst_point = dst_point;
@@ -111,10 +186,9 @@ impl Solution {
   }
 
   fn move_col_last_number(&mut self, num: usize) {
-    let src_point = find_num_point_in_board(&self.board, num);
-    let dst_point = number_to_square_point(num, self.size);
+    let src_point = self.board.find_num(num).unwrap();
+    let dst_point = self.board.number_to_point(num);
     if src_point == dst_point {
-      println!("num = {}, no need to move", num);
       return;
     }
     let mut pre_dst_point = dst_point;
@@ -128,17 +202,16 @@ impl Solution {
   }
 
   pub(crate) fn move_basic_number(&mut self, num: usize) {
-    let src_point = find_num_point_in_board(&self.board, num);
-    let dst_point = number_to_square_point(num, self.size);
+    let src_point = self.board.find_num(num).unwrap();
+    let dst_point = self.board.number_to_point(num);
     if src_point == dst_point {
-      println!("num = {}, no need to move", num);
       return;
     }
     self.move_number_from_src_to_dst(num, src_point, dst_point);
   }
 
   pub(crate) fn move_number_to_dst(&mut self, num: usize, dst_point: Point) {
-    let src_point = find_num_point_in_board(&self.board, num);
+    let src_point = self.board.find_num(num).unwrap();
     self.move_number_from_src_to_dst(num, src_point, dst_point);
   }
 
@@ -149,19 +222,18 @@ impl Solution {
     dst_point: Point,
   ) {
     if src_point == dst_point {
-      println!("num = {}, no need to move", num);
       return;
     } else {
-      println!("move {} from {:?} to {:?}", num, src_point, dst_point);
+      info!("move {} from {:?} to {:?}", num, src_point, dst_point);
     }
 
     let num_paths = self.find_path(num, src_point, dst_point);
     if num_paths.is_none() {
-      println!("{}", self);
+      info!("{}", self);
       panic!("find special case");
     }
     let num_paths = num_paths.unwrap();
-    // println!("num_paths = {:?}", num_paths);
+    // info!("num_paths = {:?}", num_paths);
 
     let mut num_point = src_point;
     for path_point in num_paths {
@@ -204,7 +276,7 @@ impl Solution {
 
     let zero_paths = self.find_path(0, self.zero_point, dst_point);
     if zero_paths.is_none() {
-      println!("{}", self);
+      info!("{}", self);
       panic!("find special case");
     }
     let zero_paths = zero_paths.unwrap();
@@ -286,17 +358,12 @@ impl Solution {
     self.fixed_points.contains(point)
   }
 
-  // 交换 point1 和 point2 两个点的值
-  pub(crate) fn swap_node(&mut self, point1: Point, point2: Point) {
-    swap_two_points(&mut self.board, point1, point2);
-  }
-
   // 1. 交换 zero_point 和 point 的值
   // 2. 并更新 self.zero_point 的位置
   // 3. 记录 self.zero_point 移动的路径
   pub(crate) fn swap_with_zero(&mut self, point: Point) {
     self.record_zero_point_move_poing(point);
-    self.swap_node(self.zero_point, point);
+    self.board.swap_points(self.zero_point, point);
     self.zero_point = point;
   }
 
@@ -307,7 +374,12 @@ impl Solution {
       let upoint = Point::newi(ipoint);
       if upoint == point {
         self.result.push(direction.name.to_string());
+        return;
       }
     }
+    panic!(
+      "swap invalid, zero_point = {:?}, point = {:?}",
+      self.zero_point, point
+    );
   }
 }
