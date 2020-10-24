@@ -19,5 +19,8 @@ pub mod solution_display;
 pub use solution_special_case::*;
 pub mod solution_special_case;
 
+pub use solution_special_case_2::*;
+pub mod solution_special_case_2;
+
 pub use utils::*;
 pub mod utils;

@@ -3,31 +3,6 @@ use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Eq)]
-struct BFSContext {
-  position: Point,
-  manhattan_distance: usize,
-  path: Vec<Point>,
-}
-
-impl Ord for BFSContext {
-  fn cmp(&self, other: &Self) -> Ordering {
-    other.manhattan_distance.cmp(&self.manhattan_distance)
-  }
-}
-
-impl PartialOrd for BFSContext {
-  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-    Some(self.cmp(other))
-  }
-}
-
-impl PartialEq for BFSContext {
-  fn eq(&self, other: &Self) -> bool {
-    self.manhattan_distance == other.manhattan_distance
-  }
-}
-
 pub struct Solution {
   pub(super) board: Board,                 // board 是个正方形
   pub(super) fixed: usize,                 // 固定点的数字
@@ -54,8 +29,8 @@ impl Solution {
 
     let max_number = input_context.size * input_context.size;
 
-    let fixed_points: HashSet<Point> = HashSet::new();
-    //fixed_points.insert(fixed_point);
+    let mut fixed_points: HashSet<Point> = HashSet::new();
+    fixed_points.insert(fixed_point);
 
     Solution {
       board: board,
@@ -80,8 +55,15 @@ impl Solution {
         break;
       }
 
+      if self.find_special_case() {
+        continue;
+      }
+
       if self.start_row <= self.start_col {
-        info!("start process row = {}", self.start_row);
+        info!(
+          "start process row, start_row = {}, start_col = {}",
+          self.start_row, self.start_col,
+        );
         // 处理 start_row 这一行
 
         // 一直从开始处理到倒数第 3 个数字
@@ -99,20 +81,30 @@ impl Solution {
         // x x x p3 p4
         let p1 = Point::new(self.start_row, self.end_col - 1);
         let p2 = Point::new(self.start_row, self.end_col);
-        let p3 = Point::new(self.start_row + 1, self.end_col - 1);
+        let _p3 = Point::new(self.start_row + 1, self.end_col - 1);
         let p4 = Point::new(self.start_row + 1, self.end_col);
 
         let last_2 = self.board.point_to_number(p1);
         let last_1 = self.board.point_to_number(p2);
 
-        self.move_number_to_dst(last_2, p2);
-        self.move_number_to_dst(last_1, p4);
-        self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p4]);
-        self.move_zero_with_paths(vec![p2, p4]);
+        if self.board[p1] == last_2 && self.board[p2] == last_1 {
+          // 最后两个数字已经是正确的了，就不需要处理了
+        } else {
+          self.move_number_to_dst(last_2, p2);
+          self.move_number_to_dst_with_temp_fixed(last_1, p4, vec![p2]);
+          self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p4]);
+          self.move_zero_with_paths(vec![p2, p4]);
+        }
+
+        self.fixed_points.insert(p1);
+        self.fixed_points.insert(p2);
 
         self.start_row += 1;
       } else {
-        info!("start process col = {}", self.start_col);
+        info!(
+          "start process col, start_row = {}, start_col = {}",
+          self.start_row, self.start_col,
+        );
         // 处理 start_col 这一列
 
         for row in self.start_row..=(self.end_row - 2) {
@@ -133,16 +125,23 @@ impl Solution {
 
         let p1 = Point::new(self.end_row - 1, self.start_col);
         let p2 = Point::new(self.end_row, self.start_col);
-        let p3 = Point::new(self.end_row - 1, self.start_col + 1);
+        let _p3 = Point::new(self.end_row - 1, self.start_col + 1);
         let p4 = Point::new(self.end_row, self.start_col + 1);
 
         let last_2 = self.board.point_to_number(p1);
         let last_1 = self.board.point_to_number(p2);
 
-        self.move_number_to_dst(last_2, p2);
-        self.move_number_to_dst(last_1, p4);
-        self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p4]);
-        self.move_zero_with_paths(vec![p2, p4]);
+        if self.board[p1] == last_2 && self.board[p2] == last_1 {
+          // 最后两个数字已经是正确的了，就不需要处理了
+        } else {
+          self.move_number_to_dst(last_2, p2);
+          self.move_number_to_dst_with_temp_fixed(last_1, p4, vec![p2]);
+          self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p4]);
+          self.move_zero_with_paths(vec![p2, p4]);
+        }
+
+        self.fixed_points.insert(p1);
+        self.fixed_points.insert(p2);
 
         self.start_col += 1;
       }
@@ -208,6 +207,25 @@ impl Solution {
       return;
     }
     self.move_number_from_src_to_dst(num, src_point, dst_point);
+  }
+
+  // 把数字 num 移动到 dst_point 的位置
+  // 并在移动的过程中把 temp_fixed 数组中的 point 设置为固定点
+  pub(crate) fn move_number_to_dst_with_temp_fixed(
+    &mut self,
+    num: usize,
+    dst_point: Point,
+    temp_fixed: Vec<Point>,
+  ) {
+    for &point in temp_fixed.iter() {
+      self.fixed_points.insert(point);
+    }
+
+    self.move_number_to_dst(num, dst_point);
+
+    for point in temp_fixed.iter() {
+      self.fixed_points.remove(&point);
+    }
   }
 
   pub(crate) fn move_number_to_dst(&mut self, num: usize, dst_point: Point) {
@@ -381,5 +399,30 @@ impl Solution {
       "swap invalid, zero_point = {:?}, point = {:?}",
       self.zero_point, point
     );
+  }
+}
+
+#[derive(Debug, Clone, Eq)]
+struct BFSContext {
+  position: Point,
+  manhattan_distance: usize,
+  path: Vec<Point>,
+}
+
+impl Ord for BFSContext {
+  fn cmp(&self, other: &Self) -> Ordering {
+    other.manhattan_distance.cmp(&self.manhattan_distance)
+  }
+}
+
+impl PartialOrd for BFSContext {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl PartialEq for BFSContext {
+  fn eq(&self, other: &Self) -> bool {
+    self.manhattan_distance == other.manhattan_distance
   }
 }

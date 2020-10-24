@@ -1,4 +1,5 @@
 use super::*;
+use std::cmp::Ordering;
 use std::ops::Add;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
@@ -38,6 +39,22 @@ impl Add<&Direction> for Point {
       row: self.row as isize + other.row,
       col: self.col as isize + other.col,
     }
+  }
+}
+
+impl Ord for Point {
+  fn cmp(&self, other: &Self) -> Ordering {
+    match self.row.cmp(&other.row) {
+      Ordering::Equal => self.col.cmp(&other.col),
+      Ordering::Less => Ordering::Less,
+      Ordering::Greater => Ordering::Greater,
+    }
+  }
+}
+
+impl PartialOrd for Point {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
   }
 }
 
