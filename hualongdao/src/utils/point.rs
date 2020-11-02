@@ -12,12 +12,6 @@ impl Point {
   pub fn new(row: usize, col: usize) -> Point {
     Point { row, col }
   }
-  pub fn newi(point: IPoint) -> Point {
-    Point {
-      row: point.row as usize,
-      col: point.col as usize,
-    }
-  }
 }
 
 impl Add<Direction> for Point {
@@ -58,6 +52,15 @@ impl PartialOrd for Point {
   }
 }
 
+impl From<IPoint> for Point {
+  fn from(point: IPoint) -> Self {
+    Point {
+      row: point.row as usize,
+      col: point.col as usize,
+    }
+  }
+}
+
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
 pub struct IPoint {
   pub row: isize,
@@ -84,4 +87,10 @@ impl Add<&Direction> for IPoint {
       col: self.col + other.col,
     }
   }
+}
+
+/// 计算两个点之间的曼哈顿距离
+pub fn calc_two_point_manhattan_distance(p1: Point, p2: Point) -> usize {
+  (p1.row as isize - p2.row as isize).abs() as usize
+    + (p1.col as isize - p2.col as isize).abs() as usize
 }

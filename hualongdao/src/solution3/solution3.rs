@@ -1,9 +1,10 @@
-use super::*;
+use crate::*;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::collections::HashSet;
+use std::fmt;
 
-pub struct Solution {
+pub struct Solution3 {
   pub(super) board: Board,                 // board 是个正方形
   pub(super) fixed: usize,                 // 固定点的数字
   pub(super) size: usize,                  // board 的边长
@@ -19,8 +20,8 @@ pub struct Solution {
   pub(super) end_col: usize,
 }
 
-impl Solution {
-  pub fn new(input_context: &InputContext) -> Solution {
+impl Solution3 {
+  pub fn new(input_context: &InputContext) -> Solution3 {
     let board = Board::new(input_context.board.clone());
 
     let fixed_point = board.number_to_point(input_context.fixed);
@@ -32,7 +33,7 @@ impl Solution {
     let mut fixed_points: HashSet<Point> = HashSet::new();
     fixed_points.insert(fixed_point);
 
-    Solution {
+    Solution3 {
       board: board,
       fixed: input_context.fixed,
       size: input_context.size,
@@ -340,7 +341,7 @@ impl Solution {
           continue;
         }
 
-        let new_upoint = Point::newi(new_ipoint);
+        let new_upoint = Point::from(new_ipoint);
 
         if new_upoint == dst_point {
           let mut new_path = context.path.clone();
@@ -389,7 +390,7 @@ impl Solution {
   pub(crate) fn record_zero_point_move_poing(&mut self, point: Point) {
     for direction in DIRECTIONS.iter() {
       let ipoint = self.zero_point + direction;
-      let upoint = Point::newi(ipoint);
+      let upoint = Point::from(ipoint);
       if upoint == point {
         self.result.push(direction.name.to_string());
         return;
@@ -399,6 +400,116 @@ impl Solution {
       "swap invalid, zero_point = {:?}, point = {:?}",
       self.zero_point, point
     );
+  }
+
+  fn find_special_case(&mut self) -> bool {
+    if self.special_1_condition() {
+      self.specail_1_process();
+      return true;
+    }
+
+    if self.special_2_condition() {
+      self.specail_2_process();
+      return true;
+    }
+
+    false
+  }
+
+  fn special_1_condition(&self) -> bool {
+    let p1_num = self.fixed - 1;
+    let p3_num = self.fixed - self.size;
+    let p2_num = p3_num - 1;
+
+    let frow = self.fixed_point.row;
+    let fcol = self.fixed_point.col;
+    let p1 = Point::new(frow, fcol - 1);
+    let p2 = Point::new(frow - 1, fcol - 1);
+    let p3 = Point::new(frow - 1, fcol);
+
+    if self.fixed_point.row == self.start_row + 1 && self.fixed_point.col == self.start_col + 1 {
+      if self.board[p1] == p1_num && self.board[p2] == p2_num && self.board[p3] == p3_num {
+        return false;
+      } else {
+        return true;
+      }
+    }
+    false
+  }
+
+  // x x  x  x  x
+  // x p2 p3 p4
+  // x p1 f  p5
+  // x x  x  p6
+  // x x  x  p7
+  fn specail_1_process(&mut self) {
+    let p1_num = self.fixed - 1;
+    let p3_num = self.fixed - self.size;
+    let p2_num = p3_num - 1;
+
+    let frow = self.fixed_point.row;
+    let fcol = self.fixed_point.col;
+    let p1 = Point::new(frow, fcol - 1);
+    let p2 = Point::new(frow - 1, fcol - 1);
+    let p3 = Point::new(frow - 1, fcol);
+    let p4 = Point::new(frow - 1, fcol + 1);
+    let p5 = Point::new(frow, fcol + 1);
+    let p6 = Point::new(frow + 1, fcol + 1);
+
+    self.move_number_to_dst(p1_num, p4);
+    self.move_number_to_dst_with_temp_fixed(p2_num, p5, vec![p4]);
+    self.move_number_to_dst_with_temp_fixed(p3_num, p6, vec![p4, p5]);
+    self.move_zero_to_dst_with_temp_fixed(p3, vec![p4, p5, p6]);
+    self.move_zero_with_paths(vec![p4, p5, p6]);
+    self.move_zero_to_dst_with_temp_fixed(p2, vec![p3, p4, p5]);
+    self.move_zero_with_paths(vec![p3, p4, p5]);
+    self.move_zero_to_dst_with_temp_fixed(p1, vec![p2, p3, p4]);
+    self.move_zero_with_paths(vec![p2, p3, p4]);
+  }
+
+  // 只剩下 3 * 3 大小的空间了，改用暴力搜索
+  pub(super) fn special_2_condition(&self) -> bool {
+    let left_width = self.end_col - self.start_col + 1;
+    let left_height = self.end_row - self.start_row + 1;
+    if left_width <= 3 && left_height <= 3 {
+      return true;
+    }
+    false
+  }
+
+  pub(super) fn specail_2_process(&mut self) {
+    info!("{}", self);
+    panic!("show 3 * 3");
+  }
+}
+
+impl fmt::Display for Solution3 {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut result = String::new();
+    result.push_str(&format!("stage: {}\n", self.stage));
+    result.push_str(&format!(
+      "size: {} * {} = {}\n",
+      self.size, self.size, self.max_number,
+    ));
+
+    result.push_str(&format!("{}", self.board));
+
+    result.push_str(&format!("fixed: {}, {:?}\n", self.fixed, self.fixed_point));
+
+    let mut fixed_points: Vec<_> = self.fixed_points.iter().collect();
+    fixed_points.sort();
+    result.push_str(&format!("fixed_points: {:?}\n", fixed_points));
+    result.push_str(&format!("zero_point: {:?}\n", self.zero_point));
+    result.push_str(&format!(
+      "start_row: {}, start_col: {}\n",
+      self.start_row, self.start_col
+    ));
+    result.push_str(&format!(
+      "end_row: {}, end_col: {}\n",
+      self.end_row, self.end_col
+    ));
+    result.push_str(&format!("result: {}\n", self.result.join("")));
+    write!(f, "{}", result)
   }
 }
 
@@ -422,6 +533,31 @@ impl PartialOrd for BFSContext {
 }
 
 impl PartialEq for BFSContext {
+  fn eq(&self, other: &Self) -> bool {
+    self.manhattan_distance == other.manhattan_distance
+  }
+}
+
+#[derive(Debug, Clone, Eq)]
+struct AStarContext {
+  manhattan_distance: usize,
+  board_str: String,
+  path: Vec<String>,
+}
+
+impl Ord for AStarContext {
+  fn cmp(&self, other: &Self) -> Ordering {
+    other.manhattan_distance.cmp(&self.manhattan_distance)
+  }
+}
+
+impl PartialOrd for AStarContext {
+  fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    Some(self.cmp(other))
+  }
+}
+
+impl PartialEq for AStarContext {
   fn eq(&self, other: &Self) -> bool {
     self.manhattan_distance == other.manhattan_distance
   }

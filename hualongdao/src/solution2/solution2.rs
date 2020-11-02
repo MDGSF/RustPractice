@@ -1,21 +1,8 @@
-#[macro_use]
-extern crate lazy_static;
-
+use crate::*;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
-use std::collections::HashMap;
 use std::collections::HashSet;
-use std::collections::VecDeque;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-struct InputContext {
-  board: Vec<Vec<usize>>,
-  fixed: usize,
-  size: usize,
-  stage: usize,
-}
 
 #[derive(Debug, Clone, Eq)]
 struct Context {
@@ -40,46 +27,6 @@ impl PartialEq for Context {
   fn eq(&self, other: &Self) -> bool {
     self.manhattan_distance == other.manhattan_distance
   }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Point {
-  row: usize,
-  col: usize,
-}
-
-#[derive(Debug, Clone)]
-struct Direction {
-  row: isize,
-  col: isize,
-  name: &'static str,
-}
-
-lazy_static! {
-  static ref DIRECTIONS: Vec<Direction> = {
-    let mut m = Vec::new();
-    m.push(Direction {
-      row: 0,
-      col: -1,
-      name: "L",
-    });
-    m.push(Direction {
-      row: 0,
-      col: 1,
-      name: "R",
-    });
-    m.push(Direction {
-      row: -1,
-      col: 0,
-      name: "U",
-    });
-    m.push(Direction {
-      row: 1,
-      col: 0,
-      name: "D",
-    });
-    m
-  };
 }
 
 fn swap_node(
@@ -259,7 +206,7 @@ fn search_astar(input_context: &InputContext) {
   }
 }
 
-fn astar() -> Result<()> {
+pub fn astar() -> Result<()> {
   let data = std::fs::read_to_string("levels.json")?;
 
   let contexts: Vec<InputContext> = serde_json::from_str(&data)?;

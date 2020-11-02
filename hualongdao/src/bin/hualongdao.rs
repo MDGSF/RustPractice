@@ -13,7 +13,7 @@ fn main() -> Result<()> {
 
   for (i, context) in contexts.iter().enumerate() {
     if i == 1 {
-      let mut solution = Solution::new(&context);
+      let mut solution = Solution3::new(&context);
       info!("solutin:\n{}", solution);
       solution.process();
       info!("end:\n{}", solution);
