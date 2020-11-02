@@ -5,19 +5,19 @@ use std::collections::HashSet;
 use std::fmt;
 
 pub struct Solution3 {
-  pub(super) board: Board,                 // board 是个正方形
-  pub(super) fixed: usize,                 // 固定点的数字
-  pub(super) size: usize,                  // board 的边长
-  pub(super) stage: usize,                 // 第几关
-  pub(super) fixed_point: Point,           // fixed 的行列位置
-  pub(super) max_number: usize,            // 最大数字 size * size
-  pub(super) fixed_points: HashSet<Point>, // 当前不能被移动的点
-  pub(super) zero_point: Point,            // 空格的位置
-  pub(super) result: Vec<String>,          // 保存最后的结果，空格的移动命令，L R U D
-  pub(super) start_row: usize,
-  pub(super) start_col: usize,
-  pub(super) end_row: usize,
-  pub(super) end_col: usize,
+  board: Board,                 // board 是个正方形
+  fixed: usize,                 // 固定点的数字
+  size: usize,                  // board 的边长
+  stage: usize,                 // 第几关
+  fixed_point: Point,           // fixed 的行列位置
+  max_number: usize,            // 最大数字 size * size
+  fixed_points: HashSet<Point>, // 当前不能被移动的点
+  zero_point: Point,            // 空格的位置
+  result: Vec<String>,          // 保存最后的结果，空格的移动命令，L R U D
+  start_row: usize,
+  start_col: usize,
+  end_row: usize,
+  end_col: usize,
 }
 
 impl Solution3 {
@@ -468,7 +468,7 @@ impl Solution3 {
   }
 
   // 只剩下 3 * 3 大小的空间了，改用暴力搜索
-  pub(super) fn special_2_condition(&self) -> bool {
+  fn special_2_condition(&self) -> bool {
     let left_width = self.end_col - self.start_col + 1;
     let left_height = self.end_row - self.start_row + 1;
     if left_width <= 3 && left_height <= 3 {
@@ -477,7 +477,7 @@ impl Solution3 {
     false
   }
 
-  pub(super) fn specail_2_process(&mut self) {
+  fn specail_2_process(&mut self) {
     info!("{}", self);
     panic!("show 3 * 3");
   }

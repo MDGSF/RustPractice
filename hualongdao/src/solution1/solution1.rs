@@ -1,6 +1,46 @@
 use crate::*;
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::collections::VecDeque;
+
+pub struct Solution1 {
+  board: Board,                 // board 是个正方形
+  fixed: usize,                 // 固定点的数字
+  size: usize,                  // board 的边长
+  stage: usize,                 // 第几关
+  fixed_point: Point,           // fixed 的行列位置
+  max_number: usize,            // 最大数字 size * size
+  fixed_points: HashSet<Point>, // 当前不能被移动的点
+  zero_point: Point,            // 空格的位置
+  result: Vec<String>,          // 保存最后的结果，空格的移动命令，L R U D
+}
+
+impl Solution1 {
+  pub fn new(input_context: &InputContext) -> Solution1 {
+    let board = Board::new(input_context.board.clone());
+
+    let fixed_point = board.number_to_point(input_context.fixed);
+
+    let zero_point = board.find_num(0).unwrap();
+
+    let max_number = input_context.size * input_context.size;
+
+    let mut fixed_points: HashSet<Point> = HashSet::new();
+    fixed_points.insert(fixed_point);
+
+    Solution1 {
+      board: board,
+      fixed: input_context.fixed,
+      size: input_context.size,
+      stage: input_context.stage,
+      fixed_point,
+      max_number,
+      fixed_points,
+      zero_point,
+      result: Vec::new(),
+    }
+  }
+}
 
 #[derive(Debug, Clone)]
 struct Context {
