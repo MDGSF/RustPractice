@@ -3,12 +3,25 @@ pub fn is_valid(code: &str) -> bool {
   code
     .chars()
     .rev()
-    .filter(|c| !c.is_whitespace())
-    .try_fold((0, 0), |(sum, count), c| {
-      c.to_digit(10)
-        .map(|num| if count % 2 == 1 { num * 2 } else { num })
-        .map(|num| if num > 9 { num - 9 } else { num })
-        .map(|num| (sum + num, count + 1))
+    .filter(|&c| c != ' ')
+    .map(|c| c.to_digit(10))
+    .enumerate()
+    .map(|(i, digit)| {
+      digit.map(|digit| {
+        if i % 2 == 1 {
+          let n = digit * 2;
+          if n > 9 {
+            n - 9
+          } else {
+            n
+          }
+        } else {
+          digit
+        }
+      })
     })
-    .map_or(false, |(sum, count)| sum % 10 == 0 && count > 1)
+    .try_fold((0, 0), |(count, sum), digit| {
+      digit.map(|digit| (count + 1, sum + digit))
+    })
+    .map_or(false, |(count, sum)| count > 1 && sum % 10 == 0)
 }
