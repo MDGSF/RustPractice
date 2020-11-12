@@ -1,0 +1,19 @@
+[package]
+name = "tungstenite_demo_1"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tungstenite = "0.11.1"
+url = "2.2.0"
+log = "0.4.0"
+env_logger = "0.8.1"
+serde = "1.0.117"
+serde_derive = "1.0.117"
+rmp = "0.8.9"
+rmp-serde = "0.14.4"
+rmpv = "0.4.5"
+serde_bytes = "0.11"
