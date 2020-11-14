@@ -1,4 +1,5 @@
 use crate::*;
+use std::cmp::Ordering;
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
@@ -8,6 +9,10 @@ pub struct Board(Vec<Vec<usize>>);
 impl Board {
   pub fn new(board: Vec<Vec<usize>>) -> Board {
     Board(board)
+  }
+
+  pub fn num(&self, point: Point) -> usize {
+    self.0[point.row][point.col]
   }
 
   /// 在 board 上遍历查找指定的 num 数字，返回其下标。
@@ -49,6 +54,38 @@ impl Board {
     let size = self.0.len();
     point.row * size + point.col + 1
   }
+
+  pub fn encode_to_string(&self) -> String {
+    let mut result = String::new();
+    for rows in self.0.iter() {
+      for item in rows.iter() {
+        result.push_str(&item.to_string());
+        result.push_str(",");
+      }
+    }
+    result
+  }
+
+  pub fn decode_from_string(board_str: &str, size: usize) -> Board {
+    let temp: Vec<usize> = board_str
+      .split(',')
+      .filter(|x| x.len() > 0)
+      .map(|x| x.parse::<usize>().unwrap())
+      .collect();
+    let mut result = vec![vec![0_usize; size]; size];
+    let mut row = 0;
+    let mut col = 0;
+    for v in temp {
+      result[row][col] = v;
+      col += 1;
+      if col == size {
+        row += 1;
+        col = 0;
+      }
+    }
+
+    Board(result)
+  }
 }
 
 impl Index<Point> for Board {
@@ -78,4 +115,9 @@ impl fmt::Display for Board {
     }
     write!(f, "{}", result)
   }
+}
+
+/// 计算 point 位置应该放的数字 num
+pub fn point_to_number(size: usize, point: Point) -> usize {
+  point.row * size + point.col + 1
 }
