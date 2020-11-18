@@ -2,6 +2,7 @@ use crate::*;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
+use std::fmt;
 
 pub struct Solution1 {
   board: Board,                 // board 是个正方形
@@ -19,14 +20,19 @@ impl Solution1 {
   pub fn new(input_context: &InputContext) -> Solution1 {
     let board = Board::new(input_context.board.clone());
 
-    let fixed_point = board.number_to_point(input_context.fixed);
-
     let zero_point = board.find_num(0).unwrap();
 
     let max_number = input_context.size * input_context.size;
 
     let mut fixed_points: HashSet<Point> = HashSet::new();
-    fixed_points.insert(fixed_point);
+
+    let fixed_point = if input_context.fixed > 0 {
+      let fixed_point = board.number_to_point(input_context.fixed);
+      fixed_points.insert(fixed_point);
+      fixed_point
+    } else {
+      Point::new(0, 0)
+    };
 
     Solution1 {
       board: board,
@@ -40,6 +46,108 @@ impl Solution1 {
       result: Vec::new(),
     }
   }
+
+  pub fn search_bfs(&mut self) -> Option<String> {
+    info!("search bfs start {}", self);
+    let result_bs = result_string(self.size);
+    println!("result bs = {}", result_bs);
+
+    let bs = self.board.encode_to_string();
+
+    let context = Context {
+      board_str: bs.clone(),
+      path: vec![],
+    };
+
+    let mut m = HashMap::new();
+    m.insert(bs.clone(), context);
+
+    let mut queue = VecDeque::new();
+    queue.push_back(bs);
+
+    while !queue.is_empty() {
+      let bs = queue.pop_front().unwrap();
+      let context = m.get(&bs).unwrap().clone();
+      let mut board = Board::decode_from_string(&bs, self.size);
+      let zero = board.find_num(0).unwrap();
+      let path = &context.path;
+      // println!("bs = {}", bs);
+      // println!("context = {:?}", context);
+      // println!("board = {:?}", board);
+      // println!("zero = {:?}", zero);
+      // println!("path = {:?}", path);
+
+      let old_row = zero.row;
+      let old_col = zero.col;
+      for direction in DIRECTIONS.iter() {
+        let new_row = (old_row as isize + direction.row) as usize;
+        let new_col = (old_col as isize + direction.col) as usize;
+
+        let t1 = is_valid_position(new_row, new_col, self.size);
+        let t2 = self.is_fixed_upoint(&Point::new(new_row, new_col));
+        if t1 && !t2 {
+          board.swap_points(Point::new(old_row, old_col), Point::new(new_row, new_col));
+
+          let new_bs = board.encode_to_string();
+          if new_bs == result_bs {
+            info!("found result");
+
+            let mut new_path = path.clone();
+            new_path.push(direction.name.to_string());
+
+            let result = new_path.join("");
+            info!("path = {:?}", result);
+
+            return Some(result);
+          }
+          if !m.contains_key(&new_bs) {
+            let mut new_path = path.clone();
+            new_path.push(direction.name.to_string());
+            let new_context = Context {
+              board_str: new_bs.clone(),
+              path: new_path,
+            };
+            m.insert(new_bs.clone(), new_context);
+            queue.push_back(new_bs);
+          }
+
+          board.swap_points(Point::new(old_row, old_col), Point::new(new_row, new_col));
+        }
+      } // for
+    } // while
+    None
+  }
+
+  pub fn is_fixed_upoint(&self, point: &Point) -> bool {
+    self.fixed_points.contains(point)
+  }
+}
+
+impl fmt::Display for Solution1 {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    let mut result = String::new();
+    result.push_str(&format!("[solution1] ---------------\n"));
+    result.push_str(&format!("[solution1] stage: {}\n", self.stage));
+    result.push_str(&format!(
+      "[solution1] size: {} * {} = {}\n",
+      self.size, self.size, self.max_number,
+    ));
+
+    result.push_str(&format!("{}", self.board));
+
+    result.push_str(&format!(
+      "[solution1] fixed: {}, {:?}\n",
+      self.fixed, self.fixed_point
+    ));
+
+    let mut fixed_points: Vec<_> = self.fixed_points.iter().collect();
+    fixed_points.sort();
+    result.push_str(&format!("[solution1] fixed_points: {:?}\n", fixed_points));
+    result.push_str(&format!("[solution1] zero_point: {:?}\n", self.zero_point));
+    result.push_str(&format!("[solution1] result: {}\n", self.result.join("")));
+    result.push_str(&format!("[solution1] ---------------\n"));
+    write!(f, "{}", result)
+  }
 }
 
 #[derive(Debug, Clone)]
@@ -48,43 +156,9 @@ struct Context {
   path: Vec<String>,
 }
 
-fn swap_node(
-  board: &mut Vec<Vec<usize>>,
-  old_row: usize,
-  old_col: usize,
-  new_row: usize,
-  new_col: usize,
-) {
-  let temp = board[old_row][old_col];
-  board[old_row][old_col] = board[new_row][new_col];
-  board[new_row][new_col] = temp;
-}
-
 fn is_valid_position(row: usize, col: usize, size: usize) -> bool {
   let size = size as usize;
   row < size && col < size
-}
-
-fn find_zero_point(board: &Vec<Vec<usize>>) -> Point {
-  for row in 0..board.len() {
-    for col in 0..board[row].len() {
-      if board[row][col] == 0 {
-        return Point { row, col };
-      }
-    }
-  }
-  Point { row: 0, col: 0 }
-}
-
-fn find_fixed_point(board: &Vec<Vec<usize>>, fixed: usize) -> Point {
-  for row in 0..board.len() {
-    for col in 0..board[row].len() {
-      if board[row][col] == fixed {
-        return Point { row, col };
-      }
-    }
-  }
-  Point { row: 0, col: 0 }
 }
 
 fn result_string(size: usize) -> String {
@@ -96,107 +170,4 @@ fn result_string(size: usize) -> String {
   }
   result.push_str("0,");
   result
-}
-
-fn board_to_string(board: &Vec<Vec<usize>>) -> String {
-  let mut result = String::new();
-  for rows in board.iter() {
-    for item in rows.iter() {
-      result.push_str(&item.to_string());
-      result.push_str(",");
-    }
-  }
-  result
-}
-
-fn string_to_board(board_str: &str, size: usize) -> Vec<Vec<usize>> {
-  let temp: Vec<usize> = board_str
-    .split(',')
-    .filter(|x| x.len() > 0)
-    .map(|x| x.parse::<usize>().unwrap())
-    .collect();
-  let mut result = vec![vec![0_usize; size]; size];
-  let mut row = 0;
-  let mut col = 0;
-  for v in temp {
-    result[row][col] = v;
-    col += 1;
-    if col == size {
-      row += 1;
-      col = 0;
-    }
-  }
-  result
-}
-
-pub fn search_bfs(input_context: &InputContext) {
-  println!("{:#?}", input_context);
-
-  let board_size = input_context.size as usize;
-  let fixed_point = find_fixed_point(&input_context.board, input_context.fixed);
-
-  let result_bs = result_string(input_context.size);
-  println!("result bs = {}", result_bs);
-
-  let bs = board_to_string(&input_context.board);
-
-  let context = Context {
-    board_str: bs.clone(),
-    path: vec![],
-  };
-
-  let mut m = HashMap::new();
-  m.insert(bs.clone(), context);
-
-  let mut queue = VecDeque::new();
-  queue.push_back(bs);
-
-  while !queue.is_empty() {
-    let bs = queue.pop_front().unwrap();
-    let context = m.get(&bs).unwrap().clone();
-    let mut board = string_to_board(&bs, board_size);
-    let zero = find_zero_point(&board);
-    let path = &context.path;
-    // println!("bs = {}", bs);
-    // println!("context = {:?}", context);
-    // println!("board = {:?}", board);
-    // println!("zero = {:?}", zero);
-    // println!("path = {:?}", path);
-
-    let old_row = zero.row;
-    let old_col = zero.col;
-    for direction in DIRECTIONS.iter() {
-      let new_row = (old_row as isize + direction.row) as usize;
-      let new_col = (old_col as isize + direction.col) as usize;
-      if is_valid_position(new_row, new_col, input_context.size)
-        && (new_row != fixed_point.row || new_col != fixed_point.col)
-      {
-        swap_node(&mut board, old_row, old_col, new_row, new_col);
-
-        let new_bs = board_to_string(&board);
-        if new_bs == result_bs {
-          println!("found result");
-
-          let mut new_path = path.clone();
-          new_path.push(direction.name.to_string());
-
-          println!("path = {:?}", new_path.join(""));
-
-          return;
-        }
-        if !m.contains_key(&new_bs) {
-          let mut new_path = path.clone();
-          new_path.push(direction.name.to_string());
-          let new_context = Context {
-            board_str: new_bs.clone(),
-            path: new_path,
-          };
-          m.insert(new_bs.clone(), new_context);
-          queue.push_back(new_bs);
-        }
-
-        swap_node(&mut board, old_row, old_col, new_row, new_col);
-      }
-    }
-  }
 }

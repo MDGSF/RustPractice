@@ -12,3 +12,6 @@ pub mod mylog;
 
 pub use point::*;
 pub mod point;
+
+pub use rectangle::*;
+pub mod rectangle;

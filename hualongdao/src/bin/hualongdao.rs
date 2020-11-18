@@ -12,10 +12,11 @@ fn main() -> Result<()> {
   let contexts: Vec<InputContext> = serde_json::from_str(&data)?;
 
   for (i, context) in contexts.iter().enumerate() {
-    if i == 1 {
+    if i == 17 {
       let mut solution = Solution3::new(&context);
       info!("solutin:\n{}", solution);
-      solution.process();
+      let result = solution.process();
+      info!("result = {:?}", result);
       info!("end:\n{}", solution);
       break;
     }

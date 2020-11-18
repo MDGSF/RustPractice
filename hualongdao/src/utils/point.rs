@@ -89,6 +89,14 @@ impl Add<&Direction> for IPoint {
   }
 }
 
+/// 计算 point 相对于原点 origin_point 的相对位置
+pub fn calc_two_point_relative_position(origin_point: Point, point: Point) -> Point {
+  Point {
+    row: point.row - origin_point.row,
+    col: point.col - origin_point.col,
+  }
+}
+
 /// 计算两个点之间的曼哈顿距离
 pub fn calc_two_point_manhattan_distance(p1: Point, p2: Point) -> usize {
   (p1.row as isize - p2.row as isize).abs() as usize
