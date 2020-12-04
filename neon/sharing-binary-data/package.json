@@ -1,0 +1,14 @@
+{
+  "name": "sharing-binary-data",
+  "version": "0.1.0",
+  "description": "An example of sharing binary data between js and rust.",
+  "main": "lib/index.js",
+  "author": "HuangJian <1342042894@qq.com>",
+  "license": "MIT",
+  "dependencies": {
+    "neon-cli": "^0.5.3"
+  },
+  "scripts": {
+    "install": "neon build"
+  }
+}
