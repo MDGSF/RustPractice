@@ -1,0 +1,18 @@
+[package]
+name = "class-factory"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+license = "MIT"
+build = "build.rs"
+edition = "2018"
+exclude = ["artifacts.json", "index.node"]
+
+[lib]
+name = "class_factory"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+neon-build = "0.5.3"
+
+[dependencies]
+neon = "0.5.3"

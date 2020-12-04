@@ -1,0 +1,14 @@
+{
+  "name": "errors",
+  "version": "0.1.0",
+  "description": "",
+  "main": "lib/index.js",
+  "author": "HuangJian <1342042894@qq.com>",
+  "license": "MIT",
+  "dependencies": {
+    "neon-cli": "^0.5.3"
+  },
+  "scripts": {
+    "install": "neon build"
+  }
+}
