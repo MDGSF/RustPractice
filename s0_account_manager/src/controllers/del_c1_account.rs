@@ -6,13 +6,18 @@ use serde::{Deserialize, Serialize};
 use tide::{Body, Request};
 
 #[derive(Deserialize, Serialize)]
-struct RespData {
-  message: String,
-  accounts: Vec<String>,
-  numbers: usize,
+struct ReqData {
+  name: String,
 }
 
-pub async fn get_all_c1_account(req: Request<State>) -> tide::Result<tide::Body> {
+#[derive(Deserialize, Serialize)]
+struct RespData {
+  message: String,
+}
+
+pub async fn del_c1_account(mut req: Request<State>) -> tide::Result<tide::Body> {
+  let req_data: ReqData = req.body_json().await?;
+
   let state = req.state();
 
   // connect to redis
@@ -22,13 +27,10 @@ pub async fn get_all_c1_account(req: Request<State>) -> tide::Result<tide::Body>
   );
   let client = redis::Client::open(redis_config)?;
   let mut con = client.get_connection()?;
-  let accounts: Vec<String> = con.hkeys("c1_auth_keys")?;
+  let _: () = con.hdel("c1_auth_keys", req_data.name)?;
 
-  let numbers = accounts.len();
   let resp = RespData {
-    message: "get all c1 accounts success".to_string(),
-    accounts,
-    numbers,
+    message: "del c1 account success".to_string(),
   };
   Ok(Body::from_json(&resp)?)
 }
