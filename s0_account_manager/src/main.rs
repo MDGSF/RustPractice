@@ -9,7 +9,7 @@ async fn main() -> Result<()> {
 
   tide::log::start();
   let mut app = tide::with_state(State::new(config.clone()));
-  init_routers(&mut app);
+  init_routers(&mut app)?;
   app.listen(config.listener).await?;
   Ok(())
 }
