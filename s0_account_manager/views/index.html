@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <title>S0 Account Manager</title>
+    <title>S0服务账号管理系统</title>
 
     <link
       rel="stylesheet"
@@ -13,6 +13,8 @@
   <body>
     <div class="container">
       <h1 class="text-center">S0服务账号管理系统</h1>
+
+      <div id="alert-wrapper"></div>
 
       <div class="container">
         <h2 class="text-left">添加用户</h2>
@@ -38,7 +40,7 @@
             </div>
           </div>
           <div class="row">
-            <button id="btn_add_user" type="submit" class="btn btn-primary">
+            <button id="btn_add_user" type="button" class="btn btn-primary">
               添加用户
             </button>
           </div>
@@ -61,7 +63,7 @@
             </div>
           </div>
           <div class="row">
-            <button id="btn_del_user" type="submit" class="btn btn-primary">
+            <button id="btn_del_user" type="button" class="btn btn-primary">
               删除用户
             </button>
           </div>

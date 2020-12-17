@@ -1,10 +1,7 @@
-// window.onload = function exampleFunction() {
-//   console.log("window.onload");
-//   get_all_c1_account();
-// };
+"use strict";
 
 $(document).ready(function () {
-  console.log("ready!");
+  console.log("ready");
   get_all_c1_account();
 });
 
@@ -31,7 +28,7 @@ $("#btn_add_user").click(function () {
     name.length === 0 ||
     key.length === 0
   ) {
-    alert("invalid name or key");
+    show_alert_msg("invalid name or key");
     return;
   }
 
@@ -41,7 +38,7 @@ $("#btn_add_user").click(function () {
     dataType: "json",
     data: JSON.stringify({ name: name, key: key }),
     success: function (data) {
-      console.log(data);
+      show_alert_msg(data.message);
       get_all_c1_account();
     },
   });
@@ -50,7 +47,7 @@ $("#btn_add_user").click(function () {
 $("#btn_del_user").click(function () {
   let name = $("#input_del_user_name").val();
   if (name === null || name === undefined || name.length === 0) {
-    alert("invalid name");
+    show_alert_msg("invalid name");
     return;
   }
 
@@ -60,8 +57,19 @@ $("#btn_del_user").click(function () {
     dataType: "json",
     data: JSON.stringify({ name: name }),
     success: function (data) {
-      console.log(data);
+      show_alert_msg(data.message);
       get_all_c1_account();
     },
   });
 });
+
+function show_alert_msg(msg) {
+  $("#alert-wrapper").empty();
+  $("#alert-wrapper").append(`
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+  ${msg}
+  <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+    <span aria-hidden="true">&times;</span>
+  </button>
+</div>`);
+}
