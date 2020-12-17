@@ -20,29 +20,31 @@
         <h2 class="text-left">添加用户</h2>
         <form role="form">
           <div class="row">
+            <div class="form-group col-lg-2">
+              <button id="btn_add_user" type="button" class="btn btn-primary">
+                添加用户
+              </button>
+            </div>
             <div class="form-group col-lg-1">
               <label for="code">用户名</label>
+            </div>
+            <div class="form-group col-lg-2">
               <input
                 id="input_add_user_name"
                 type="text"
                 class="form-control"
               />
             </div>
-          </div>
-          <div class="row">
             <div class="form-group col-lg-1">
               <label for="code">密码</label>
+            </div>
+            <div class="form-group col-lg-2">
               <input
                 id="input_add_user_key"
                 type="text"
                 class="form-control input-normal"
               />
             </div>
-          </div>
-          <div class="row">
-            <button id="btn_add_user" type="button" class="btn btn-primary">
-              添加用户
-            </button>
           </div>
         </form>
       </div>
@@ -53,19 +55,21 @@
         <h2 class="text-left">删除用户</h2>
         <form role="form">
           <div class="row">
+            <div class="form-group col-lg-2">
+              <button id="btn_del_user" type="button" class="btn btn-primary">
+                删除用户
+              </button>
+            </div>
             <div class="form-group col-lg-1">
               <label for="code">用户名</label>
+            </div>
+            <div class="form-group col-lg-2">
               <input
                 id="input_del_user_name"
                 type="text"
                 class="form-control"
               />
             </div>
-          </div>
-          <div class="row">
-            <button id="btn_del_user" type="button" class="btn btn-primary">
-              删除用户
-            </button>
           </div>
         </form>
       </div>
@@ -74,6 +78,7 @@
 
       <div class="container">
         <h2 class="text-left">用户列表</h2>
+        <div id="s0_accounts_number"></div>
         <ul id="list_s0_accounts" class="list-group"></ul>
       </div>
     </div>

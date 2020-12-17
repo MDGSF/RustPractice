@@ -8,6 +8,10 @@ $(document).ready(function () {
 function get_all_c1_account() {
   $.get("/get_all_c1_account", function (data) {
     console.log(data);
+
+    var div_s0_accounts_number = document.getElementById('s0_accounts_number');
+    div_s0_accounts_number.innerHTML = `当前用户数量：${data.numbers}`;
+
     $("#list_s0_accounts").empty();
     for (let i = 0; i < data.accounts.length; i++) {
       $("#list_s0_accounts").append(
