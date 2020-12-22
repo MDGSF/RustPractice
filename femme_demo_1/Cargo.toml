@@ -1,0 +1,11 @@
+[package]
+name = "femme_demo_1"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+femme = "2.1.1"
+kv-log-macro = "1.0.7"
