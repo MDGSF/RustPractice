@@ -1,6 +1,0 @@
-[package]
-name = "rb4_1"
-version = "0.1.0"
-authors = ["huangjian <1342042894@qq.com>"]
-
-[dependencies]
