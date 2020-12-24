@@ -4,9 +4,9 @@ macro_rules! pin_mut {
     let mut $x = $x;
     #[allow(unused_mut)]
     let mut $x = unsafe {
-      std::pin::Pin::new_unchecked(&mut $x);
+      std::pin::Pin::new_unchecked(&mut $x)
     };
-  )* };
+  )* }
 }
 
 #[macro_export]
