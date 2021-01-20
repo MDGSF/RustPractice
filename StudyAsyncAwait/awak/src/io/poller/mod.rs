@@ -90,9 +90,10 @@ impl Poller {
   }
 
   pub fn notify(&self) -> io::Result<()> {
-    if !self
+    if self
       .notified
-      .compare_and_swap(false, true, Ordering::SeqCst)
+      .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+      .is_ok()
     {
       self.reactor.notify()?;
     }
