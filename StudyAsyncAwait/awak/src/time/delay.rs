@@ -9,7 +9,7 @@ pub struct Delay {
   timer: Timer,
 }
 
-pub fn delay_until(dealine: Instant) -> Delay {
+pub fn delay_until(deadline: Instant) -> Delay {
   Delay {
     timer: Timer::new(deadline),
   }

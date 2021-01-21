@@ -55,7 +55,7 @@ pub struct Elapsed(());
 
 impl std::error::Error for Elapsed {}
 
-impl std::Display for Elapsed {
+impl fmt::Display for Elapsed {
   fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
     "deadline has elapsed".fmt(fmt)
   }
