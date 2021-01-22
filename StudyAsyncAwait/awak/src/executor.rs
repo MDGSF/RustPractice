@@ -20,7 +20,52 @@ pub struct Executor {
   global: Arc<Global>,
 }
 
-impl Executor {}
+impl Executor {
+  pub fn new() -> Executor {
+    Executor {
+      global: Arc::new(Global {
+        queue: ConcurrentQueue::unbounded(),
+        notified: AtomicBool::new(false),
+        shards: RwLock::new(Vec::new()),
+        sleepers: Mutex::new(Sleepers {
+          count: 0,
+          wakers: Vec::new(),
+          id_gen: 1,
+        }),
+      }),
+    }
+  }
+
+  pub fn spawn<T: Send + 'static>(
+    &self,
+    future: impl Future<Output = T> + Send + 'static,
+  ) -> Task<T> {
+    let global = self.global.clone();
+
+    let schedule = move |runnable| {
+      global.queue.push(runnable).unwrap();
+      global.notify();
+    };
+
+    let (runnable, task) = async_task::spawn(future, schedule);
+    runnable.schedule();
+
+    task
+  }
+
+  pub fn ticker(&self) -> Ticker {
+    let ticker = Ticker {
+      global: self.global.clone(),
+      shard: Arc::new(ConcurrentQueue::bounded(512)),
+      sleeping: AtomicUsize::new(0),
+      ticks: AtomicUsize::new(0),
+    };
+
+    self.global.shards.write().push(ticker.shard.clone());
+
+    ticker
+  }
+}
 
 impl Default for Executor {
   fn default() -> Executor {
@@ -115,6 +160,111 @@ pub struct Ticker {
 }
 
 impl UnwindSafe for Ticker {}
+
+impl Ticker {
+  pub async fn run(&self) {
+    loop {
+      for _ in 0..200 {
+        let runnable = self.tick().await;
+        runnable.run();
+      }
+
+      yield_now().await;
+    }
+  }
+
+  async fn tick(&self) -> Runnable {
+    poll_fn(|cx| match self.search() {
+      None => {
+        self.sleep(cx.waker());
+        Poll::Pending
+      }
+      Some(r) => {
+        self.wake();
+
+        self.global.notify();
+
+        let ticks = self.ticks.fetch_add(1, Ordering::SeqCst);
+        if ticks % 64 == 0 {
+          steal(&self.global.queue, &self.shard);
+        }
+
+        Poll::Ready(r)
+      }
+    })
+    .await
+  }
+
+  /// Finds the next task to run.
+  fn search(&self) -> Option<Runnable> {
+    if let Ok(r) = self.shard.pop() {
+      return Some(r);
+    }
+
+    // Try stealing from the global queue.
+    if let Ok(r) = self.global.queue.pop() {
+      return Some(r);
+    }
+
+    // Try stealing from other shards.
+    let shards = self.global.shards.read();
+
+    let n = shards.len();
+    let start = rand::thread_rng().gen_range(0..n);
+    let iter = shards
+      .iter()
+      .chain(shards.iter())
+      .skip(start)
+      .take(n)
+      .filter(|shard| !Arc::ptr_eq(shard, &self.shard));
+
+    for shard in iter {
+      steal(shard, &self.shard);
+      if let Ok(r) = self.shard.pop() {
+        return Some(r);
+      }
+    }
+
+    None
+  }
+
+  fn sleep(&self, waker: &Waker) -> bool {
+    let mut sleepers = self.global.sleepers.lock();
+
+    match self.sleeping.load(Ordering::SeqCst) {
+      0 => self
+        .sleeping
+        .store(sleepers.insert(waker), Ordering::SeqCst),
+      id => {
+        if !sleepers.update(id, waker) {
+          return false;
+        }
+      }
+    }
+
+    self
+      .global
+      .notified
+      .swap(sleepers.is_notified(), Ordering::SeqCst);
+
+    true
+  }
+
+  fn wake(&self) {
+    let id = self.sleeping.swap(0, Ordering::SeqCst);
+    if id == 0 {
+      return;
+    }
+
+    let mut sleepers = self.global.sleepers.lock();
+    sleepers.remove(id);
+
+    self
+      .global
+      .notified
+      .swap(sleepers.is_notified(), Ordering::SeqCst);
+  }
+}
 
 #[derive(Debug)]
 #[must_use = "futures do nothing unless you `.await` or poll them"]

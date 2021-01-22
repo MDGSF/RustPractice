@@ -19,8 +19,11 @@ macro_rules! ready {
   };
 }
 
+pub mod executor;
 pub mod io;
 pub mod net;
 mod parking;
 pub mod time;
 mod waker_fn;
+
+pub use executor::Executor;
