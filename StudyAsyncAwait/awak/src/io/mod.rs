@@ -42,7 +42,7 @@ impl<T> Async<T> {
 
   pub fn into_inner(mut self) -> io::Result<T> {
     let io = self.io.take().unwrap();
-    Reactor::get().remove_io(&self.source);
+    Reactor::get().remove_io(&self.source)?;
     Ok(io)
   }
 

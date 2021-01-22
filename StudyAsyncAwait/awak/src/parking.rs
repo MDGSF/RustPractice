@@ -5,8 +5,8 @@ use std::time::Duration;
 use parking_lot::{Condvar, Mutex};
 
 const EMPTY: usize = 0;
-const PARKED: usize = 0;
-const NOTIFIED: usize = 0;
+const PARKED: usize = 1;
+const NOTIFIED: usize = 2;
 
 pub fn pair() -> (Parker, Unparker) {
   let p = Parker::new();

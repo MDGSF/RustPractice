@@ -45,8 +45,8 @@ impl Reactor {
       timer_fd,
     };
 
-    reactor.insert(event_fd);
-    reactor.insert(timer_fd);
+    reactor.insert(event_fd)?;
+    reactor.insert(timer_fd)?;
 
     reactor.interest(event_fd, NOTIFY_KEY, true, false)?;
 
