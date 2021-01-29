@@ -11,6 +11,7 @@ Rust 学习笔记和示例代码。
 - StudyCrates：第三方库学习。
 - StudyExercism：`exercism` 网站相关题目参考答案。
 - StudyFFI：`Rust FFI` 相关知识学习。
+- StudyInvitingRust：Rust 实战视频课程代码示例。
 - StudyList：Rust 实现链表学习。
 - StudyMacro：`Rust 宏`相关知识学习。
 - StudyRust101：`rust-101` 题目参考答案。
