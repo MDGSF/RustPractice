@@ -3,11 +3,14 @@ struct Buffer<'a> {
   pos: usize,
 }
 
-impl<'b, 'a: 'b> Buffer<'a> {
+impl<'a: 'b, 'b> Buffer<'a> {
   fn new(b: &'a [u8]) -> Buffer {
     Buffer { buf: b, pos: 0 }
   }
 
+  // 'a 是成员 buf 的生命周期
+  // 'b 是对象的生命周期
+  // 所以 'a > 'b
   fn read_bytes(&'b mut self) -> &'a [u8] {
     self.pos += 3;
     &self.buf[self.pos - 3..self.pos]
