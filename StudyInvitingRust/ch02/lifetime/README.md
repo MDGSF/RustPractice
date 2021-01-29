@@ -89,3 +89,6 @@ let s: &'static str = "I have a static lifetime.";
 https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#references-and-borrowing
 https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html
 
+https://doc.rust-lang.org/nomicon/lifetimes.html
+https://doc.rust-lang.org/nomicon/hrtb.html
+
