@@ -1,29 +1,29 @@
-trait For {
-  fn four(&self) {}
+trait FooTrait {
+  fn show(&self) {}
 }
 
-impl<'four> For for &'four for<'fore> For
+impl<'a> FooTrait for &'a dyn for<'b> FooTrait
 where
-  for<'fore> For: For,
+  for<'b> dyn FooTrait: FooTrait,
 {
-  fn four(self: &&'four for<'fore> For) {
-    print!("four")
+  fn show(self: &&'a dyn for<'b> FooTrait) {
+    println!("show 1")
   }
 }
 
-impl For for for<'four> fn(&'four for<'fore> For) {
-  fn four(&self) {
-    print!("for")
+impl FooTrait for for<'a> fn(&'a dyn for<'b> FooTrait) {
+  fn show(&self) {
+    println!("show 2")
   }
 }
 
-fn four(four: &for<'four> For) {
-  <&for<'four> For as For>::four(&{
-    ((&four).four(), four.four());
-    four
-  })
+fn global_test(x: &dyn for<'a> FooTrait) {
+  (&x).show(); // show 1
+  x.show(); // show 2
+  <&dyn for<'a> FooTrait as FooTrait>::show(&x); // show 1
 }
 
 fn main() {
-  four(&(four as for<'four> fn(&'four for<'fore> For)))
+  let x = &(global_test as for<'a> fn(&'a dyn for<'b> FooTrait));
+  global_test(x);
 }

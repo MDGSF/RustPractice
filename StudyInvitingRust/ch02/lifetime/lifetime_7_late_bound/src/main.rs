@@ -23,8 +23,8 @@ fn print(b1: &[u8], b2: &[u8]) {
 
 fn main() {
   let mut buf = Buffer::new();
-  //let b1 = buf.read_bytes();
-  let b1 = &(buf.read_bytes().to_owned());
+  let b1 = buf.read_bytes();
+  //let b1 = &(buf.read_bytes().to_owned());
   let b2 = buf.read_bytes();
   print(b1, b2);
 }
