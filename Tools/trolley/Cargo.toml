@@ -1,0 +1,21 @@
+[package]
+name = "trolley"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[lib]
+name = "trolley"
+path = "src/lib.rs"
+
+[[bin]]
+name = "trolley"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+structopt = "0.3"
+
