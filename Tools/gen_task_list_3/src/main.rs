@@ -62,8 +62,10 @@ fn main() -> Result<()> {
 static GLOBAL_VIDEO_COUNT: AtomicUsize = AtomicUsize::new(1);
 
 fn walk_dir(directory: &Path, output_dir: &Path, input_dir: &Path) -> Result<()> {
-  for entry in fs::read_dir(directory)? {
-    let entry = entry?;
+  let mut paths: Vec<_> = fs::read_dir(directory)?.map(|r| r.unwrap()).collect();
+  paths.sort_by_key(|dir| dir.path());
+
+  for entry in paths {
     let path = entry.path();
     if path.is_dir() {
       let video_dir = Path::new(directory).join(path.to_path_buf());
