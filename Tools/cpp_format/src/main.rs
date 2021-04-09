@@ -53,6 +53,10 @@ fn walk_dir(directory: &Path) -> Result<()> {
 }
 
 fn is_cpp_file(file_name: &Path) -> Result<bool> {
+  let str_file_name = file_name.to_str().unwrap();
+  if str_file_name.ends_with(".pb.cc") || str_file_name.ends_with(".pb.h") {
+    return Ok(false);
+  }
   if let Some(ext) = file_name.extension() {
     let ext = ext.to_str().unwrap().to_lowercase();
     if ext == "cpp" || ext == "h" || ext == "hpp" || ext == "cxx" || ext == "cc" || ext == "inc" {
