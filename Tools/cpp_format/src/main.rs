@@ -59,7 +59,14 @@ fn is_cpp_file(file_name: &Path) -> Result<bool> {
   }
   if let Some(ext) = file_name.extension() {
     let ext = ext.to_str().unwrap().to_lowercase();
-    if ext == "cpp" || ext == "h" || ext == "hpp" || ext == "cxx" || ext == "cc" || ext == "inc" {
+    if ext == "cpp"
+      || ext == "h"
+      || ext == "hpp"
+      || ext == "cxx"
+      || ext == "cc"
+      || ext == "inc"
+      || ext == "c"
+    {
       return Ok(true);
     }
   }
