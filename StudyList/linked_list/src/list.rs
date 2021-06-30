@@ -157,6 +157,101 @@ impl<T> LinkedList<T> {
       list: self,
     }
   }
+
+  pub fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+    iter.into_iter().for_each(move |elt| self.push_back(elt));
+  }
+
+  pub fn append(&mut self, other: &mut Self) {
+    match self.tail {
+      None => mem::swap(self, other),
+      Some(mut tail) => {
+        if let Some(mut other_head) = other.head.take() {
+          unsafe {
+            tail.as_mut().next = Some(other_head);
+            other_head.as_mut().prev = Some(tail);
+          }
+          self.tail = other.tail.take();
+          self.len += mem::replace(&mut other.len, 0);
+        }
+      }
+    }
+  }
+
+  pub fn prepend(&mut self, other: &mut Self) {
+    match self.head {
+      None => mem::swap(self, other),
+      Some(mut head) => {
+        if let Some(mut other_tail) = other.tail.take() {
+          unsafe {
+            head.as_mut().prev = Some(other_tail);
+            other_tail.as_mut().next = Some(head);
+          }
+          self.head = other.head.take();
+          self.len += mem::replace(&mut other.len, 0);
+        }
+      }
+    }
+  }
+
+  pub fn split_off(&mut self, at: usize) -> LinkedList<T> {
+    let len = self.len();
+    assert!(at <= len, "Cannot split off at a nonexists index");
+    if at == 0 {
+      return mem::take(self);
+    } else if at == len {
+      return Self::new();
+    }
+
+    let split_node = if at - 1 <= len - 1 - (at - 1) {
+      let mut iter = self.iter_mut();
+      for _ in 0..at - 1 {
+        iter.next();
+      }
+      iter.head
+    } else {
+      let mut iter = self.iter_mut();
+      for _ in 0..len - 1 - (at - 1) {
+        iter.next_back();
+      }
+      iter.tail
+    };
+
+    unsafe { self.split_off_after_node(split_node, at) }
+  }
+
+  #[inline]
+  unsafe fn split_off_after_node(
+    &mut self,
+    split_node: Option<NonNull<Node<T>>>,
+    at: usize,
+  ) -> Self {
+    if let Some(mut split_node) = split_node {
+      let second_part_head;
+      let second_part_tail;
+      second_part_head = split_node.as_mut().next.take();
+      if let Some(mut head) = second_part_head {
+        head.as_mut().prev = None;
+        second_part_tail = self.tail;
+      } else {
+        second_part_tail = None;
+      }
+
+      let second_part = LinkedList {
+        head: second_part_head,
+        tail: second_part_tail,
+        len: self.len - at,
+        marker: PhantomData,
+      };
+
+      self.tail = Some(split_node);
+      self.len = at;
+
+      second_part
+    } else {
+      mem::replace(self, LinkedList::new())
+    }
+  }
 }
 
 impl<T> Drop for LinkedList<T> {
@@ -193,12 +288,7 @@ impl<T: fmt::Debug> fmt::Debug for LinkedList<T> {
 impl<T> FromIterator<T> for LinkedList<T> {
   fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
     let mut list = Self::new();
-
-    let list_mut_ref = &mut list;
-    iter
-      .into_iter()
-      .for_each(move |elt| list_mut_ref.push_back(elt));
-
+    list.extend(iter);
     list
   }
 }
@@ -230,6 +320,25 @@ impl<'a, T> IntoIterator for &'a mut LinkedList<T> {
   #[inline]
   fn into_iter(self) -> IterMut<'a, T> {
     self.iter_mut()
+  }
+}
+
+impl<T: Clone> Clone for LinkedList<T> {
+  fn clone(&self) -> Self {
+    self.iter().cloned().collect()
+  }
+
+  fn clone_from(&mut self, other: &Self) {
+    let mut iter_other = other.iter();
+    if self.len() > other.len() {
+      self.split_off(other.len());
+    }
+    for (elem, elem_other) in self.iter_mut().zip(&mut iter_other) {
+      elem.clone_from(elem_other);
+    }
+    if iter_other.len() > 0 {
+      self.extend(iter_other.cloned());
+    }
   }
 }
 
@@ -384,6 +493,7 @@ impl<T> ExactSizeIterator for IterMut<'_, T> {}
 
 impl<T> FusedIterator for IterMut<'_, T> {}
 
+//#[derive(Clone)]
 pub struct IntoIter<T> {
   list: LinkedList<T>,
 }
