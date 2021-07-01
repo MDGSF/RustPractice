@@ -1,0 +1,23 @@
+[package]
+name = "rusty-journal"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0"
+home = "0.5"
+structopt = "0.3"
+serde_json = "1.0"    # Add serde_json.
+
+[dependencies.serde]  # Add serde in its own section.
+version = "1.0"
+features = ["derive"] # We'll need the derive feature.
+
+# We're also going to need the serde feature for the chrono crate, 
+# so we can serialize the DateTime field.
+[dependencies.chrono]
+version = "0.4"
+features = ["serde"]  
