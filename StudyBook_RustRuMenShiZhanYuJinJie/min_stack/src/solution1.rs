@@ -13,8 +13,15 @@ impl MinStack {
 
   pub fn push(&mut self, x: i32) {
     self.stack.push(x);
-    if self.min_stack.is_empty() || x < *self.min_stack.last().unwrap() {
+    if self.min_stack.is_empty() {
       self.min_stack.push(x);
+    } else {
+      let min_top = *self.min_stack.last().unwrap();
+      if x < min_top {
+        self.min_stack.push(x);
+      } else {
+        self.min_stack.push(min_top);
+      }
     }
   }
 
@@ -22,9 +29,8 @@ impl MinStack {
     if self.stack.is_empty() {
       return;
     }
-    if self.stack.pop().unwrap() == *self.min_stack.last().unwrap() {
-      self.min_stack.pop();
-    }
+    self.stack.pop();
+    self.min_stack.pop();
   }
 
   pub fn top(&self) -> i32 {
@@ -41,7 +47,7 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test() {
+  fn test_1() {
     let mut s = MinStack::new();
     s.push(-2);
     s.push(0);
@@ -50,5 +56,16 @@ mod tests {
     s.pop();
     assert_eq!(s.top(), 0);
     assert_eq!(s.get_min(), -2);
+  }
+
+  #[test]
+  fn test_2() {
+    let mut s = MinStack::new();
+    s.push(0);
+    s.push(1);
+    s.push(0);
+    assert_eq!(s.get_min(), 0);
+    s.pop();
+    assert_eq!(s.get_min(), 0);
   }
 }
