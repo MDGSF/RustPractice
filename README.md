@@ -8,6 +8,7 @@ Rust 学习笔记和示例代码。
 - hualongdao：华容道。
 - StudyAlgorithm：算法学习。
 - StudyAsyncAwait：异步编程学习。
+- StudyBook_RustRuMenShiZhanYuJinJie：Rust入门实战与进阶。
 - StudyCrates：第三方库学习。
 - StudyExercism：`exercism` 网站相关题目参考答案。
 - StudyFFI：`Rust FFI` 相关知识学习。
