@@ -1,5 +1,5 @@
 {
     "listener": "127.0.0.1:12345",
-    "redis_addr": "192.168.3.106",
-    "redis_port": 16379
+    "redis_addr": "127.0.0.1",
+    "redis_port": 6300
 }
