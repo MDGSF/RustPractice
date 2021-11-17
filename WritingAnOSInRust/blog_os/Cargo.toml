@@ -1,0 +1,16 @@
+[package]
+name = "blog_os"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# 使用`cargo build`编译时需要的配置
+[profile.dev]
+panic = "abort" # 禁用panic时栈展开
+
+# # 使用`cargo build --release`编译时需要的配置
+[profile.release]
+panic = "abort" # 禁用panic时栈展开
