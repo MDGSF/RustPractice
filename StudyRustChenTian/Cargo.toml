@@ -1,0 +1,9 @@
+[workspace]
+
+members = [
+  "03_grammar/concepts",
+  "03_grammar/scrape_url",
+  "03_grammar/scrape_url_args",
+  "03_grammar/scrape_url_with_error_handling",
+  "04_httpie",
+]
