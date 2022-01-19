@@ -7,4 +7,7 @@ members = [
   "03_grammar/scrape_url_with_error_handling",
   "04_httpie",
   "05_thumbor",
+  "06_queryer/queryer",
+  "06_queryer/queryer-py",
+  "07_ownership",
 ]
