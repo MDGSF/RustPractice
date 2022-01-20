@@ -70,7 +70,9 @@ impl Component for App {
             // rendering motion independent of the framerate which may vary.
             let handle = {
                 let link = ctx.link().clone();
-                request_animation_frame(move |time| link.send_message(Msg::Render(time)))
+                request_animation_frame(move |time| {
+                    link.send_message(Msg::Render(time))
+                })
             };
 
             // A reference to the handle must be stored, otherwise it is dropped and the render won't
@@ -94,7 +96,11 @@ impl App {
         let verts = js_sys::Float32Array::from(vertices.as_slice());
         let vertex_buffer = gl.create_buffer().unwrap();
         gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
-        gl.buffer_data_with_array_buffer_view(GL::ARRAY_BUFFER, &verts, GL::STATIC_DRAW);
+        gl.buffer_data_with_array_buffer_view(
+            GL::ARRAY_BUFFER,
+            &verts,
+            GL::STATIC_DRAW,
+        );
         gl.vertex_attrib_pointer_with_i32(0, 2, GL::FLOAT, false, 0, 0);
         gl.enable_vertex_attrib_array(0);
 
@@ -111,7 +117,8 @@ impl App {
         gl.attach_shader(&shader_program, &frag_shader);
         gl.link_program(&shader_program);
 
-        let link_ok = gl.get_program_parameter(&shader_program, GL::LINK_STATUS);
+        let link_ok =
+            gl.get_program_parameter(&shader_program, GL::LINK_STATUS);
         if link_ok.is_falsy() {
             let message = gl.get_program_info_log(&shader_program);
             let errmsg = format!("cannot link GLSL program: {:?}", message);
@@ -129,7 +136,9 @@ impl App {
 
         let handle = {
             let link = link.clone();
-            request_animation_frame(move |time| link.send_message(Msg::Render(time)))
+            request_animation_frame(move |time| {
+                link.send_message(Msg::Render(time))
+            })
         };
 
         // A reference to the new handle must be retained for the next render to run.
