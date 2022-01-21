@@ -1,4 +1,6 @@
+extern crate nalgebra as na;
 use gloo_render::{request_animation_frame, AnimationFrame};
+use na::{Isometry3, Perspective3, Point3, Rotation3, Vector3};
 use std::sync::Arc;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as GL};
@@ -18,6 +20,7 @@ pub struct App {
     _render_loop: Option<AnimationFrame>,
     renderer: Option<renderer::Renderer>,
     mesh: Option<mesh::Mesh>,
+    eye: na::OPoint<f32, na::Const<3_usize>>,
 }
 
 impl Component for App {
@@ -31,6 +34,7 @@ impl Component for App {
             _render_loop: None,
             renderer: None,
             mesh: None,
+            eye: Point3::new(0.0_f32, 0.0, 10.0),
         }
     }
 
@@ -49,7 +53,7 @@ impl Component for App {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <canvas ref={self.node_ref.clone()} />
+            <canvas width="800" height="600" ref={self.node_ref.clone()} />
         }
     }
 
@@ -92,14 +96,31 @@ impl Component for App {
 
 impl App {
     fn render_gl(&mut self, _timestamp: f64, link: &Scope<Self>) {
+        let axis = Vector3::y_axis();
+        let angle: f32 = 0.0001 * (180.0 / 3.14159);
+        let rot = Rotation3::from_axis_angle(&axis, angle);
+        self.eye = rot * self.eye;
+
+        let target = Point3::new(0.0, 0.0, 0.0);
+        let view = Isometry3::look_at_rh(&self.eye, &target, &Vector3::y());
+        let view_matrix = view.to_homogeneous();
+        let view_slice = view_matrix.as_slice();
+
+        let width: f32 = 800.0;
+        let height: f32 = 600.0;
+        let aspect: f32 = width / height;
+        let fovy: f32 = 40.0;
+        let znear: f32 = 0.1;
+        let zfar: f32 = 1000.0;
+        let projection = Perspective3::new(aspect, fovy, znear, zfar);
+        let proj_matrix = projection.as_matrix();
+        let proj_slice = proj_matrix.as_slice();
+
         let mesh = self.mesh.as_ref().expect("mesh not initialized");
         let renderer =
             self.renderer.as_ref().expect("renderer not initialized");
 
-        let view_matrix = vec![];
-        let proj_matrix = vec![];
-
-        renderer.draw(mesh, &view_matrix, &proj_matrix);
+        renderer.draw(mesh, &view_slice, &proj_slice);
 
         let handle = {
             let link = link.clone();
