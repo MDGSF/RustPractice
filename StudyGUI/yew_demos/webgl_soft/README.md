@@ -4,3 +4,5 @@
 npm install -g sass@1.37.5
 trunk serve
 ```
+
+https://docs.rs/web-sys/latest/web_sys/struct.WebGl2RenderingContext.html#method.delete_shader

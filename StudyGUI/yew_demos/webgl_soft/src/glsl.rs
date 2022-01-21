@@ -72,3 +72,18 @@ pub fn create_program(
 
     Ok(program)
 }
+
+pub fn format_gl_error(code: u32) -> Result<&'static str> {
+    match code {
+        GL::NO_ERROR => Ok("GL::NO_ERROR"),
+        GL::INVALID_ENUM => Ok("GL::INVALID_ENUM"),
+        GL::INVALID_VALUE => Ok("GL::INVALID_VALUE"),
+        GL::INVALID_OPERATION => Ok("GL::INVALID_OPERATION"),
+        GL::INVALID_FRAMEBUFFER_OPERATION => {
+            Ok("GL::INVALID_FRAMEBUFFER_OPERATION")
+        }
+        GL::OUT_OF_MEMORY => Ok("GL::OUT_OF_MEMORY"),
+        GL::CONTEXT_LOST_WEBGL => Ok("GL::CONTEXT_LOST_WEBGL"),
+        _ => Err(anyhow!(format!("gl unknown error: {}", code))),
+    }
+}

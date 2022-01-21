@@ -3,8 +3,8 @@ use web_sys::{WebGl2RenderingContext as GL, WebGlVertexArrayObject};
 
 pub struct Mesh<'a> {
     gl: &'a GL,
-    model: Model,
-    vao: Option<WebGlVertexArrayObject>,
+    pub model: Model,
+    pub vao: Option<WebGlVertexArrayObject>,
 }
 
 impl<'a> Mesh<'a> {
