@@ -13,13 +13,7 @@ impl Model {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_model_new() {
-        let cube = r#"
+pub const MODEL_CUBE: &'static str = r#"
 {
   "vertices": [
     -1,-1,-1,
@@ -63,6 +57,12 @@ mod tests {
 }
 "#;
 
-        let _m = Model::new_from_json(cube);
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_model_new() {
+        let _m = Model::new_from_json(MODEL_CUBE);
     }
 }

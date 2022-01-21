@@ -1,19 +1,17 @@
 use crate::model::Model;
+use std::sync::Arc;
 use web_sys::{WebGl2RenderingContext as GL, WebGlVertexArrayObject};
 
-pub struct Mesh<'a> {
-    gl: &'a GL,
+pub struct Mesh {
+    gl: Arc<GL>,
     pub model: Model,
     pub vao: Option<WebGlVertexArrayObject>,
 }
 
-impl<'a> Mesh<'a> {
-    pub fn new(gl: &'a GL, model: Model) -> Self {
-        let mesh = Self {
-            gl,
-            model,
-            vao: gl.create_vertex_array(),
-        };
+impl Mesh {
+    pub fn new(gl: Arc<GL>, model: Model) -> Self {
+        let vao = gl.create_vertex_array();
+        let mesh = Self { gl, model, vao };
         mesh.upload_data();
         mesh
     }

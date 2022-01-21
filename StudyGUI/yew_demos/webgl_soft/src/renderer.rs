@@ -1,21 +1,22 @@
 use crate::glsl;
 use crate::mesh;
+use std::sync::Arc;
 use web_sys::{
     WebGl2RenderingContext as GL, WebGlProgram, WebGlUniformLocation,
 };
 
-pub struct Renderer<'a> {
-    gl: &'a GL,
+pub struct Renderer {
+    gl: Arc<GL>,
     program: WebGlProgram,
     p: Option<WebGlUniformLocation>,
     v: Option<WebGlUniformLocation>,
 }
 
-impl<'a> Renderer<'a> {
+impl Renderer {
     pub fn new(
-        gl: &'a GL,
-        vert_shader_source: &'a str,
-        frag_shader_source: &'a str,
+        gl: Arc<GL>,
+        vert_shader_source: &str,
+        frag_shader_source: &str,
     ) -> Self {
         // init webgl
         gl.enable(GL::DEPTH_TEST);
@@ -25,7 +26,7 @@ impl<'a> Renderer<'a> {
 
         // init shader program
         let program =
-            glsl::create_program(gl, vert_shader_source, frag_shader_source)
+            glsl::create_program(&gl, vert_shader_source, frag_shader_source)
                 .unwrap();
         let p = gl.get_uniform_location(&program, "P");
         let v = gl.get_uniform_location(&program, "V");
@@ -68,7 +69,7 @@ impl<'a> Renderer<'a> {
     }
 }
 
-impl<'a> Drop for Renderer<'a> {
+impl Drop for Renderer {
     fn drop(&mut self) {
         self.gl.delete_program(Some(&self.program));
     }

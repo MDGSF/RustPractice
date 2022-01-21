@@ -1,6 +1,10 @@
 use gloo_render::{request_animation_frame, AnimationFrame};
+use std::sync::Arc;
 use wasm_bindgen::JsCast;
 use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as GL};
+use webgl2::mesh;
+use webgl2::model;
+use webgl2::renderer;
 use yew::html::Scope;
 use yew::{html, Component, Context, Html, NodeRef};
 
@@ -9,9 +13,11 @@ pub enum Msg {
 }
 
 pub struct App {
-    gl: Option<GL>,
+    gl: Option<Arc<GL>>,
     node_ref: NodeRef,
     _render_loop: Option<AnimationFrame>,
+    renderer: Option<renderer::Renderer>,
+    mesh: Option<mesh::Mesh>,
 }
 
 impl Component for App {
@@ -23,6 +29,8 @@ impl Component for App {
             gl: None,
             node_ref: NodeRef::default(),
             _render_loop: None,
+            renderer: None,
+            mesh: None,
         }
     }
 
@@ -46,26 +54,26 @@ impl Component for App {
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
-        // Once rendered, store references for the canvas and GL context. These can be used for
-        // resizing the rendering area when the window or canvas element are resized, as well as
-        // for making GL calls.
-
-        let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
-
-        let gl: GL = canvas
-            .get_context("webgl2")
-            .unwrap()
-            .unwrap()
-            .dyn_into()
-            .unwrap();
-
-        self.gl = Some(gl);
-
-        // In a more complex use-case, there will be additional WebGL initialization that should be
-        // done here, such as enabling or disabling depth testing, depth functions, face
-        // culling etc.
-
         if first_render {
+            let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
+
+            let gl: GL = canvas
+                .get_context("webgl2")
+                .unwrap()
+                .unwrap()
+                .dyn_into()
+                .unwrap();
+            let gl = Arc::new(gl);
+            self.gl = Some(gl.clone());
+
+            let model = model::Model::new_from_json(model::MODEL_CUBE);
+            self.mesh = Some(mesh::Mesh::new(gl.clone(), model));
+
+            let vert_code = include_str!("../glsl/compiled_vert.glsl");
+            let frag_code = include_str!("../glsl/compiled_frag.glsl");
+            self.renderer =
+                Some(renderer::Renderer::new(gl, vert_code, frag_code));
+
             // The callback to request animation frame is passed a time value which can be used for
             // rendering motion independent of the framerate which may vary.
             let handle = {
@@ -83,56 +91,15 @@ impl Component for App {
 }
 
 impl App {
-    fn render_gl(&mut self, timestamp: f64, link: &Scope<Self>) {
-        let gl = self.gl.as_ref().expect("GL Context not initialized!");
+    fn render_gl(&mut self, _timestamp: f64, link: &Scope<Self>) {
+        let mesh = self.mesh.as_ref().expect("mesh not initialized");
+        let renderer =
+            self.renderer.as_ref().expect("renderer not initialized");
 
-        let vert_code = include_str!("../glsl/compiled_vert.glsl");
-        let frag_code = include_str!("../glsl/compiled_frag.glsl");
+        let view_matrix = vec![];
+        let proj_matrix = vec![];
 
-        // This list of vertices will draw two triangles to cover the entire canvas.
-        let vertices: Vec<f32> = vec![
-            -1.0, -1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
-        ];
-        let verts = js_sys::Float32Array::from(vertices.as_slice());
-        let vertex_buffer = gl.create_buffer().unwrap();
-        gl.bind_buffer(GL::ARRAY_BUFFER, Some(&vertex_buffer));
-        gl.buffer_data_with_array_buffer_view(
-            GL::ARRAY_BUFFER,
-            &verts,
-            GL::STATIC_DRAW,
-        );
-        gl.vertex_attrib_pointer_with_i32(0, 2, GL::FLOAT, false, 0, 0);
-        gl.enable_vertex_attrib_array(0);
-
-        let vert_shader = gl.create_shader(GL::VERTEX_SHADER).unwrap();
-        gl.shader_source(&vert_shader, vert_code);
-        gl.compile_shader(&vert_shader);
-
-        let frag_shader = gl.create_shader(GL::FRAGMENT_SHADER).unwrap();
-        gl.shader_source(&frag_shader, frag_code);
-        gl.compile_shader(&frag_shader);
-
-        let shader_program = gl.create_program().unwrap();
-        gl.attach_shader(&shader_program, &vert_shader);
-        gl.attach_shader(&shader_program, &frag_shader);
-        gl.link_program(&shader_program);
-
-        let link_ok =
-            gl.get_program_parameter(&shader_program, GL::LINK_STATUS);
-        if link_ok.is_falsy() {
-            let message = gl.get_program_info_log(&shader_program);
-            let errmsg = format!("cannot link GLSL program: {:?}", message);
-            println!("{}", errmsg);
-            panic!("{}", errmsg);
-        }
-
-        gl.use_program(Some(&shader_program));
-
-        // Attach the time as a uniform for the GL context.
-        let time = gl.get_uniform_location(&shader_program, "u_time");
-        gl.uniform1f(time.as_ref(), timestamp as f32);
-
-        gl.draw_arrays(GL::TRIANGLES, 0, 6);
+        renderer.draw(mesh, &view_matrix, &proj_matrix);
 
         let handle = {
             let link = link.clone();
