@@ -1,6 +1,8 @@
 extern crate nalgebra as na;
 use gloo_render::{request_animation_frame, AnimationFrame};
-use na::{Isometry3, Perspective3, Point3, Rotation3, Vector3};
+use na::{
+    Isometry3, Matrix4, Perspective3, Point3, Rotation3, Scale3, Vector3,
+};
 use std::sync::Arc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::JsValue;
@@ -33,6 +35,8 @@ pub struct App {
     eye: na::OPoint<f32, na::Const<3_usize>>,
 
     _render_loop: Option<AnimationFrame>,
+
+    angle: f32,
 }
 
 impl Component for App {
@@ -52,9 +56,11 @@ impl Component for App {
             node_ref: NodeRef::default(),
             renderer: None,
             mesh: None,
-            eye: Point3::new(0.0_f32, 0.0, 10.0),
+            eye: Point3::new(0.0_f32, 10.0, 10.0),
 
             _render_loop: None,
+
+            angle: 0.0,
         }
     }
 
@@ -145,36 +151,28 @@ impl Component for App {
 }
 
 impl App {
-    fn render_gl(&mut self, _timestamp: f64, link: &Scope<Self>) {
+    fn render_gl(&mut self, timestamp: f64, link: &Scope<Self>) {
+        self.angle += 1.0;
+        if self.angle > 360.0 {
+            self.angle -= 360.0;
+        }
+
         // model matrix
-        let model = Isometry3::new(Vector3::x(), na::zero());
-        let model_matrix = model.to_homogeneous();
+        let model_matrix = self.gen_model_matrix();
 
         // view matrix
-        let axis = Vector3::y_axis();
-        let angle: f32 = 0.0001 * (180.0 / 3.14159);
-        let rot = Rotation3::from_axis_angle(&axis, angle);
-        self.eye = rot * self.eye;
-
-        let target = Point3::new(0.0, 0.0, 0.0);
-        let view = Isometry3::look_at_rh(&self.eye, &target, &Vector3::y());
-        let view_matrix = view.to_homogeneous();
+        let view_matrix = self.gen_view_matrix();
         let view_slice = view_matrix.as_slice();
 
         // projection matrix
-        let aspect: f32 = self.width / self.height;
-        let fovy: f32 = 40.0;
-        let znear: f32 = 0.1;
-        let zfar: f32 = 1000.0;
-        let projection = Perspective3::new(aspect, fovy, znear, zfar);
-        let proj_matrix = projection.as_matrix();
+        let proj_matrix = self.gen_projection_matrix();
         let proj_slice = proj_matrix.as_slice();
 
         let mesh = self.mesh.as_ref().expect("mesh not initialized");
 
         let renderer =
             self.renderer.as_ref().expect("renderer not initialized");
-        renderer.draw(mesh, &view_slice, &proj_slice);
+        renderer.draw(timestamp, mesh, &view_slice, &proj_slice);
 
         let mut scene = Vec::new();
         scene.push(mesh);
@@ -199,6 +197,69 @@ impl App {
 
         // A reference to the new handle must be retained for the next render to run.
         self._render_loop = Some(handle);
+    }
+
+    fn gen_model_matrix(&self) -> na::Matrix4<f32> {
+        let translation_x = 0.0;
+        let translation_y = 0.0;
+        let translation_z = 0.0;
+        let translation_matrix = Matrix4::new(
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            1.0,
+            0.0,
+            translation_x,
+            translation_y,
+            translation_z,
+            1.0,
+        );
+
+        let scale = Scale3::new(3.0, 3.0, 3.0);
+        let scale_matrix = scale.to_homogeneous();
+
+        let rx = Rotation3::from_axis_angle(&Vector3::x_axis(), 0.0);
+        let ry = Rotation3::from_axis_angle(
+            &Vector3::y_axis(),
+            self.angle / 180.0 * std::f32::consts::PI,
+        );
+        let rz = Rotation3::from_axis_angle(&Vector3::z_axis(), 0.0);
+        let rx_matrix = rx.to_homogeneous();
+        let ry_matrix = ry.to_homogeneous();
+        let rz_matrix = rz.to_homogeneous();
+        let rotation_matrix = rz_matrix * ry_matrix * rx_matrix;
+
+        let model_matrix = translation_matrix * scale_matrix * rotation_matrix;
+        model_matrix
+    }
+
+    fn gen_view_matrix(&mut self) -> na::Matrix4<f32> {
+        let axis = Vector3::y_axis();
+        let angle: f32 = 0.0;
+        let rot = Rotation3::from_axis_angle(&axis, angle);
+        self.eye = rot * self.eye;
+
+        let target = Point3::new(0.0, 0.0, 0.0);
+        let view = Isometry3::look_at_rh(&self.eye, &target, &Vector3::y());
+        let view_matrix = view.to_homogeneous();
+        view_matrix
+    }
+
+    fn gen_projection_matrix(&self) -> na::Matrix4<f32> {
+        let aspect: f32 = self.width / self.height;
+        let fovy: f32 = 40.0;
+        let znear: f32 = 0.1;
+        let zfar: f32 = 1000.0;
+        let projection = Perspective3::new(aspect, fovy, znear, zfar);
+        let proj_matrix = projection.as_matrix();
+        proj_matrix.to_owned()
     }
 }
 

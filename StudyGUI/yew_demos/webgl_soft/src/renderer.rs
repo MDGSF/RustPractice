@@ -10,6 +10,7 @@ pub struct Renderer {
     program: WebGlProgram,
     p: Option<WebGlUniformLocation>,
     v: Option<WebGlUniformLocation>,
+    u_time: Option<WebGlUniformLocation>,
 }
 
 impl Renderer {
@@ -30,12 +31,20 @@ impl Renderer {
                 .unwrap();
         let p = gl.get_uniform_location(&program, "P");
         let v = gl.get_uniform_location(&program, "V");
+        let u_time = gl.get_uniform_location(&program, "u_time");
 
-        Self { gl, program, p, v }
+        Self {
+            gl,
+            program,
+            p,
+            v,
+            u_time,
+        }
     }
 
     pub fn draw(
         &self,
+        timestamp: f64,
         mesh: &mesh::Mesh,
         view_matrix: &[f32],
         proj_matrix: &[f32],
@@ -52,6 +61,7 @@ impl Renderer {
             false,
             proj_matrix,
         );
+        self.gl.uniform1f(self.u_time.as_ref(), timestamp as f32);
 
         self.gl.bind_vertex_array(mesh.vao.as_ref());
         self.gl.draw_elements_with_i32(

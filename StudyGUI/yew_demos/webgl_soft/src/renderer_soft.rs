@@ -117,7 +117,7 @@ impl RendererSoft {
         self.draw_point(&p0, "#ff0");
         self.draw_point(&p1, "#ff0");
         self.draw_point(&p2, "#ff0");
-        //}
+        // }
     }
 
     /// 对点 point 进行一系列坐标系转换

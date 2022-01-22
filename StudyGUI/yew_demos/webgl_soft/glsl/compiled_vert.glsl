@@ -5,6 +5,7 @@ layout (location = 1) in vec3 color;
 
 uniform mat4 P;
 uniform mat4 V;
+uniform float u_time;
 
 out vec3 vColor;
 
@@ -640,7 +641,7 @@ mat4 Gen3DMatRotateZ(float rad) {
 
 void main(void) {
   mat4 rx = Gen3DMatRotateX(radians(0.0));
-  mat4 ry = Gen3DMatRotateY(radians(0.0));
+  mat4 ry = Gen3DMatRotateY(radians(u_time * 0.03));
   mat4 rz = Gen3DMatRotateZ(radians(0.0));
   mat4 r = rz * ry * rx;
 
