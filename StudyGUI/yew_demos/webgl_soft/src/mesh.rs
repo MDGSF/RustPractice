@@ -19,6 +19,7 @@ lazy_static! {
 
 pub struct Mesh {
     gl: Arc<GL>,
+    #[allow(unused_variables)]
     resize_quality: usize,
     pub model: Model,
     pub color_texture: Option<WebGlTexture>,
@@ -26,7 +27,7 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    pub fn new(gl: Arc<GL>, model: Model, image_data: String) -> Self {
+    pub fn new(gl: Arc<GL>, model: Model, _image_data: String) -> Self {
         let vao = gl.create_vertex_array();
         let mesh = Self {
             gl,
@@ -83,6 +84,7 @@ impl Mesh {
         self.gl.bind_vertex_array(None);
     }
 
+    #[allow(dead_code)]
     fn create_texture(&mut self, image_data: String) {
         let texture = self.gl.create_texture();
         self.gl.bind_texture(GL::TEXTURE_2D, texture.as_ref());

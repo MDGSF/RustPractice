@@ -2,7 +2,10 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct Model {
+    pub name: String,
     pub vertices: Vec<f32>,
+    pub texcoords: Vec<f32>,
+    pub normals: Vec<f32>,
     pub colors: Vec<f32>,
     pub indices: Vec<u16>,
 }
@@ -56,13 +59,3 @@ pub const MODEL_CUBE: &'static str = r#"
   ]
 }
 "#;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_model_new() {
-        let _m = Model::new_from_json(MODEL_CUBE);
-    }
-}

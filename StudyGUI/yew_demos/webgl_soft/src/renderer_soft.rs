@@ -111,13 +111,13 @@ impl RendererSoft {
         );
         // 逆时针 = 指向+z方向 = 指向观众 = 正面
         // counter-clockwise
-        // let ccw = self.get_triangle_orientation(&p0, &p1, &p2);
-        // if ccw {
-        self.draw_triangle_2d(&p0, &p1, &p2, color);
-        self.draw_point(&p0, "#ff0");
-        self.draw_point(&p1, "#ff0");
-        self.draw_point(&p2, "#ff0");
-        // }
+        let ccw = self.get_triangle_orientation(&p0, &p1, &p2);
+        if ccw {
+            self.draw_triangle_2d(&p0, &p1, &p2, color);
+            self.draw_point(&p0, "#ff0");
+            self.draw_point(&p1, "#ff0");
+            self.draw_point(&p2, "#ff0");
+        }
     }
 
     /// 对点 point 进行一系列坐标系转换
@@ -224,7 +224,7 @@ impl RendererSoft {
 
         let e1 = v1 - v0; // 向量 e1
         let e2 = v2 - v1; // 向量 e2
-        let x = e1.cross(&e2); // 向量叉乘
+        let x = e2.cross(&e1); // 向量叉乘
 
         x.z > 0.0
     }

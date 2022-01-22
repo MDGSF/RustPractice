@@ -9,6 +9,9 @@ pub use random_color::*;
 pub mod glsl;
 pub use glsl::*;
 
+pub mod model_obj;
+pub use model_obj::*;
+
 pub mod model;
 pub use model::*;
 

@@ -10,7 +10,7 @@ use web_sys::{
     CanvasRenderingContext2d, HtmlCanvasElement, WebGl2RenderingContext as GL,
 };
 use webgl2::mesh;
-use webgl2::model;
+use webgl2::model_obj;
 use webgl2::renderer;
 use webgl2::renderer_soft;
 use yew::html::Scope;
@@ -126,17 +126,12 @@ impl Component for App {
             let gl = Arc::new(gl);
             self.gl = Some(gl.clone());
 
-            let image_data = include_bytes!("../models/cube/cube1.png");
-            let image_data =
-                unsafe { String::from_utf8_unchecked(image_data.to_vec()) };
-            let model = model::Model::new_from_json(model::MODEL_CUBE);
-            self.scene
-                .push(mesh::Mesh::new(gl.clone(), model, image_data));
-
             let vert_code = include_str!("../glsl/compiled_vert.glsl");
             let frag_code = include_str!("../glsl/compiled_frag.glsl");
             self.renderer =
                 Some(renderer::Renderer::new(gl, vert_code, frag_code));
+
+            self.load_model();
 
             // The callback to request animation frame is passed a time value which can be used for
             // rendering motion independent of the framerate which may vary.
@@ -155,6 +150,23 @@ impl Component for App {
 }
 
 impl App {
+    fn load_model(&mut self) {
+        let image_data = include_bytes!("../models/cube/cube1.png");
+        let image_data =
+            unsafe { String::from_utf8_unchecked(image_data.to_vec()) };
+
+        let cube_obj = include_str!("../models/cube/cube1.obj");
+        let cube_models = model_obj::parse_obj(cube_obj);
+        for mut model in cube_models.into_iter() {
+            for v in model.normals.iter() {
+                model.colors.push((v + 1.0) * 0.5);
+            }
+            let gl = self.gl.as_ref().expect("gl not initialized");
+            let mesh = mesh::Mesh::new(gl.clone(), model, image_data.clone());
+            self.scene.push(mesh);
+        }
+    }
+
     fn render_gl(&mut self, timestamp: f64, link: &Scope<Self>) {
         self.angle += 1.0;
         if self.angle > 360.0 {
