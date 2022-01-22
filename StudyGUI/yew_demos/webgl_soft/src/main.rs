@@ -3,10 +3,14 @@ use gloo_render::{request_animation_frame, AnimationFrame};
 use na::{Isometry3, Perspective3, Point3, Rotation3, Vector3};
 use std::sync::Arc;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlCanvasElement, WebGl2RenderingContext as GL};
+use wasm_bindgen::JsValue;
+use web_sys::{
+    CanvasRenderingContext2d, HtmlCanvasElement, WebGl2RenderingContext as GL,
+};
 use webgl2::mesh;
 use webgl2::model;
 use webgl2::renderer;
+use webgl2::renderer_soft;
 use yew::html::Scope;
 use yew::{html, Component, Context, Html, NodeRef};
 
@@ -15,12 +19,20 @@ pub enum Msg {
 }
 
 pub struct App {
+    width: f32,
+    height: f32,
+
+    ctx_soft: Option<Arc<CanvasRenderingContext2d>>,
+    node_ref_soft: NodeRef,
+    renderer_soft: Option<renderer_soft::RendererSoft>,
+
     gl: Option<Arc<GL>>,
     node_ref: NodeRef,
-    _render_loop: Option<AnimationFrame>,
     renderer: Option<renderer::Renderer>,
     mesh: Option<mesh::Mesh>,
     eye: na::OPoint<f32, na::Const<3_usize>>,
+
+    _render_loop: Option<AnimationFrame>,
 }
 
 impl Component for App {
@@ -29,12 +41,20 @@ impl Component for App {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
+            width: 800.0,
+            height: 600.0,
+
+            ctx_soft: None,
+            node_ref_soft: NodeRef::default(),
+            renderer_soft: None,
+
             gl: None,
             node_ref: NodeRef::default(),
-            _render_loop: None,
             renderer: None,
             mesh: None,
             eye: Point3::new(0.0_f32, 0.0, 10.0),
+
+            _render_loop: None,
         }
     }
 
@@ -53,12 +73,36 @@ impl Component for App {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
-            <canvas width="800" height="600" ref={self.node_ref.clone()} />
+            <div>
+                <canvas id="canvas-gl" width="800" height="600" ref={self.node_ref.clone()} />
+                <canvas id="canvas-soft" width="800" height="600" ref={self.node_ref_soft.clone()} />
+            </div>
         }
     }
 
     fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
+            // canvas-soft 2d init
+            let canvas_soft =
+                self.node_ref_soft.cast::<HtmlCanvasElement>().unwrap();
+            let ctx_soft: CanvasRenderingContext2d = canvas_soft
+                .get_context("2d")
+                .unwrap()
+                .unwrap()
+                .dyn_into()
+                .unwrap();
+            ctx_soft.set_fill_style(&JsValue::from_str("#000"));
+            ctx_soft.fill_rect(0.0, 0.0, self.width as f64, self.height as f64);
+            let ctx_soft = Arc::new(ctx_soft);
+            self.ctx_soft = Some(ctx_soft.clone());
+
+            self.renderer_soft = Some(renderer_soft::RendererSoft::new(
+                ctx_soft,
+                self.width,
+                self.height,
+            ));
+
+            // webgl init
             let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
 
             let gl: GL = canvas
@@ -96,6 +140,11 @@ impl Component for App {
 
 impl App {
     fn render_gl(&mut self, _timestamp: f64, link: &Scope<Self>) {
+        // model matrix
+        let model = Isometry3::new(Vector3::x(), na::zero());
+        let model_matrix = model.to_homogeneous();
+
+        // view matrix
         let axis = Vector3::y_axis();
         let angle: f32 = 0.0001 * (180.0 / 3.14159);
         let rot = Rotation3::from_axis_angle(&axis, angle);
@@ -106,6 +155,7 @@ impl App {
         let view_matrix = view.to_homogeneous();
         let view_slice = view_matrix.as_slice();
 
+        // projection matrix
         let width: f32 = 800.0;
         let height: f32 = 600.0;
         let aspect: f32 = width / height;
@@ -117,10 +167,24 @@ impl App {
         let proj_slice = proj_matrix.as_slice();
 
         let mesh = self.mesh.as_ref().expect("mesh not initialized");
+
         let renderer =
             self.renderer.as_ref().expect("renderer not initialized");
-
         renderer.draw(mesh, &view_slice, &proj_slice);
+
+        let mut scene = Vec::new();
+        scene.push(mesh);
+
+        let renderer_soft = self
+            .renderer_soft
+            .as_ref()
+            .expect("renderer_soft not initialized");
+        renderer_soft.draw_scene(
+            scene.as_slice(),
+            &model_matrix,
+            &view_matrix,
+            &proj_matrix,
+        );
 
         let handle = {
             let link = link.clone();

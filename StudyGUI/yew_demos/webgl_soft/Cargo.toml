@@ -24,7 +24,8 @@ features = [
   'WebGl2RenderingContext',
   'WebGlShader',
   'WebGlUniformLocation',
-  'WebGlVertexArrayObject', 
+  'WebGlVertexArrayObject',
+  'CanvasRenderingContext2d',
 ]
 
 [build-dependencies]
