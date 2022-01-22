@@ -45,7 +45,7 @@ impl Renderer {
     pub fn draw(
         &self,
         timestamp: f64,
-        mesh: &mesh::Mesh,
+        scene: &[mesh::Mesh],
         view_matrix: &[f32],
         proj_matrix: &[f32],
     ) {
@@ -63,14 +63,21 @@ impl Renderer {
         );
         self.gl.uniform1f(self.u_time.as_ref(), timestamp as f32);
 
-        self.gl.bind_vertex_array(mesh.vao.as_ref());
-        self.gl.draw_elements_with_i32(
-            GL::TRIANGLES,
-            mesh.model.indices.len() as i32,
-            GL::UNSIGNED_SHORT,
-            0,
-        );
-        self.gl.bind_vertex_array(None);
+        for mesh in scene.iter() {
+            // 激活 0 号 slot
+            // self.gl.active_texture(GL::TEXTURE0);
+            // 把 texture 绑定到 0 号 slot
+            // self.gl.bind_texture(GL::TEXTURE_2D, texture: Option<&WebGlTexture>);
+
+            self.gl.bind_vertex_array(mesh.vao.as_ref());
+            self.gl.draw_elements_with_i32(
+                GL::TRIANGLES,
+                mesh.model.indices.len() as i32,
+                GL::UNSIGNED_SHORT,
+                0,
+            );
+            self.gl.bind_vertex_array(None);
+        }
 
         let code = self.gl.get_error();
         if code != GL::NO_ERROR {

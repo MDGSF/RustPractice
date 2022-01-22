@@ -32,7 +32,7 @@ impl RendererSoft {
 
     pub fn draw_scene(
         &self,
-        scene: &[&mesh::Mesh],
+        scene: &[mesh::Mesh],
         mat_model: &na::Matrix4<f32>,
         mat_view: &na::Matrix4<f32>,
         mat_projection: &na::Matrix4<f32>,

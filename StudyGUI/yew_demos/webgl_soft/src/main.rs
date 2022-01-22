@@ -23,6 +23,7 @@ pub enum Msg {
 pub struct App {
     width: f32,
     height: f32,
+    scene: Vec<mesh::Mesh>,
 
     ctx_soft: Option<Arc<CanvasRenderingContext2d>>,
     node_ref_soft: NodeRef,
@@ -31,7 +32,6 @@ pub struct App {
     gl: Option<Arc<GL>>,
     node_ref: NodeRef,
     renderer: Option<renderer::Renderer>,
-    mesh: Option<mesh::Mesh>,
     eye: na::OPoint<f32, na::Const<3_usize>>,
 
     _render_loop: Option<AnimationFrame>,
@@ -47,6 +47,7 @@ impl Component for App {
         Self {
             width: 400.0,
             height: 300.0,
+            scene: vec![],
 
             ctx_soft: None,
             node_ref_soft: NodeRef::default(),
@@ -55,7 +56,6 @@ impl Component for App {
             gl: None,
             node_ref: NodeRef::default(),
             renderer: None,
-            mesh: None,
             eye: Point3::new(0.0_f32, 10.0, 10.0),
 
             _render_loop: None,
@@ -126,8 +126,12 @@ impl Component for App {
             let gl = Arc::new(gl);
             self.gl = Some(gl.clone());
 
+            let image_data = include_bytes!("../models/cube/cube1.png");
+            let image_data =
+                unsafe { String::from_utf8_unchecked(image_data.to_vec()) };
             let model = model::Model::new_from_json(model::MODEL_CUBE);
-            self.mesh = Some(mesh::Mesh::new(gl.clone(), model));
+            self.scene
+                .push(mesh::Mesh::new(gl.clone(), model, image_data));
 
             let vert_code = include_str!("../glsl/compiled_vert.glsl");
             let frag_code = include_str!("../glsl/compiled_frag.glsl");
@@ -168,21 +172,21 @@ impl App {
         let proj_matrix = self.gen_projection_matrix();
         let proj_slice = proj_matrix.as_slice();
 
-        let mesh = self.mesh.as_ref().expect("mesh not initialized");
-
         let renderer =
             self.renderer.as_ref().expect("renderer not initialized");
-        renderer.draw(timestamp, mesh, &view_slice, &proj_slice);
-
-        let mut scene = Vec::new();
-        scene.push(mesh);
+        renderer.draw(
+            timestamp,
+            self.scene.as_slice(),
+            &view_slice,
+            &proj_slice,
+        );
 
         let renderer_soft = self
             .renderer_soft
             .as_ref()
             .expect("renderer_soft not initialized");
         renderer_soft.draw_scene(
-            scene.as_slice(),
+            self.scene.as_slice(),
             &model_matrix,
             &view_matrix,
             &proj_matrix,
