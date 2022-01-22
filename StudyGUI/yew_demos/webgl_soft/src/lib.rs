@@ -1,5 +1,8 @@
 extern crate nalgebra as na;
 
+pub mod random_color;
+pub use random_color::*;
+
 pub mod glsl;
 pub use glsl::*;
 

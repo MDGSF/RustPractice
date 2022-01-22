@@ -41,8 +41,8 @@ impl Component for App {
 
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
-            width: 800.0,
-            height: 600.0,
+            width: 400.0,
+            height: 300.0,
 
             ctx_soft: None,
             node_ref_soft: NodeRef::default(),
@@ -74,8 +74,14 @@ impl Component for App {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         html! {
             <div>
-                <canvas id="canvas-gl" width="800" height="600" ref={self.node_ref.clone()} />
-                <canvas id="canvas-soft" width="800" height="600" ref={self.node_ref_soft.clone()} />
+                <canvas id="canvas-gl"
+                    width={ format!("{}", self.width) }
+                    height={ format!("{}", self.height) }
+                    ref={self.node_ref.clone()} />
+                <canvas id="canvas-soft"
+                    width={ format!("{}", self.width) }
+                    height={ format!("{}", self.height) }
+                    ref={self.node_ref_soft.clone()} />
             </div>
         }
     }
@@ -156,9 +162,7 @@ impl App {
         let view_slice = view_matrix.as_slice();
 
         // projection matrix
-        let width: f32 = 800.0;
-        let height: f32 = 600.0;
-        let aspect: f32 = width / height;
+        let aspect: f32 = self.width / self.height;
         let fovy: f32 = 40.0;
         let znear: f32 = 0.1;
         let zfar: f32 = 1000.0;

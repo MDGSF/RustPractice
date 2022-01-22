@@ -644,7 +644,7 @@ void main(void) {
   mat4 rz = Gen3DMatRotateZ(radians(0.0));
   mat4 r = rz * ry * rx;
 
-  mat4 s = Gen3DMatScale(vec3(1.0, 1.0, 1.0));
+  mat4 s = Gen3DMatScale(vec3(3.0, 3.0, 3.0));
   mat4 t = Gen3DMatTranslate(vec3(0.0, 0.0, 0.0));
   mat4 M = t * s * r;
 

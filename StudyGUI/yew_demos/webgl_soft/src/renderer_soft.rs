@@ -1,4 +1,5 @@
 use crate::mesh;
+use crate::random_color;
 use std::sync::Arc;
 use wasm_bindgen::JsValue;
 use web_sys::CanvasRenderingContext2d;
@@ -7,6 +8,7 @@ pub struct RendererSoft {
     ctx_soft: Arc<CanvasRenderingContext2d>,
     width: f32,
     height: f32,
+    colors: Vec<String>,
 }
 
 impl RendererSoft {
@@ -15,10 +17,16 @@ impl RendererSoft {
         width: f32,
         height: f32,
     ) -> Self {
+        let mut colors = Vec::new();
+        for _ in 0..100 {
+            colors.push(random_color::gen_random_color());
+        }
+
         Self {
             ctx_soft,
             width,
             height,
+            colors,
         }
     }
 
@@ -59,7 +67,7 @@ impl RendererSoft {
                     tri.push(point);
                 }
 
-                let color = "#f00";
+                let color = &self.colors[i % self.colors.len()];
                 self.draw_triangle_soft(
                     tri[0],
                     tri[1],
@@ -67,7 +75,7 @@ impl RendererSoft {
                     mat_model,
                     mat_view,
                     mat_projection,
-                    &color,
+                    color,
                 )
             }
         }
@@ -103,13 +111,13 @@ impl RendererSoft {
         );
         // 逆时针 = 指向+z方向 = 指向观众 = 正面
         // counter-clockwise
-        let ccw = self.get_triangle_orientation(&p0, &p1, &p2);
-        if ccw {
-            self.draw_triangle_2d(&p0, &p1, &p2, color);
-            self.draw_point(&p0, "#ff0");
-            self.draw_point(&p1, "#ff0");
-            self.draw_point(&p2, "#ff0");
-        }
+        // let ccw = self.get_triangle_orientation(&p0, &p1, &p2);
+        // if ccw {
+        self.draw_triangle_2d(&p0, &p1, &p2, color);
+        self.draw_point(&p0, "#ff0");
+        self.draw_point(&p1, "#ff0");
+        self.draw_point(&p2, "#ff0");
+        //}
     }
 
     /// 对点 point 进行一系列坐标系转换
