@@ -11,4 +11,7 @@ members = [
   "06_queryer/queryer-py",
   "07_ownership",
   "10_lifetime",
+  "11_memory",
+  "12_type_system",
+  "13_traits",
 ]
