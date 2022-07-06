@@ -63,6 +63,7 @@ impl Val {
 
     pub fn modify(&mut self) {
         self.id += 1;
+        println!("modify id = {}", self.id);
     }
 }
 
@@ -74,12 +75,12 @@ fn main() {
     {
         let v1 = Val {
             name: String::from("val1"),
-            id: 5,
+            id: 3,
         };
 
         let v2 = Val {
             name: String::from("val2"),
-            id: 5,
+            id: 3,
         };
 
         let e1 = Item::<Val> {
@@ -94,11 +95,11 @@ fn main() {
 
         vector.add(e1);
         vector.add(e2);
+        println!("vector.len = {}", vector.len());
     }
 
-    println!("vector.len = {}", vector.len());
-
     {
+        println!("\ntest1");
         let item1 = vector.find("val1");
         let item2 = vector.find("val2");
         println!("item1 = {:?}", item1);
@@ -110,6 +111,24 @@ fn main() {
             item1.as_ref().unwrap().lock().unwrap().val.run();
         });
         item2.unwrap().lock().unwrap().val.run();
-        handle.join();
+        handle.join().unwrap();
+    }
+
+    {
+        println!("\ntest2");
+        let item1 = vector.find("val1");
+        let item2 = vector.find("val1");
+
+        let handle = thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            item1.as_ref().unwrap().lock().unwrap().val.modify();
+        });
+        item2.as_ref().unwrap().lock().unwrap().val.run();
+        handle.join().unwrap();
+
+        println!(
+            "item2 val id = {}",
+            item2.as_ref().unwrap().lock().unwrap().val.id
+        );
     }
 }
