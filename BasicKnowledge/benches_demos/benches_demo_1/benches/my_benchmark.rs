@@ -1,3 +1,4 @@
+use benches_demo_1::add;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -8,6 +9,24 @@ use std::sync::Mutex;
 // 1s = 10^6 us
 // 1s = 10^9 ns
 // 1s = 10^12ps
+
+fn bench_add_01(c: &mut Criterion) {
+    c.bench_function("add 0 and 1", |b| {
+        b.iter(|| {
+            add(black_box(0), black_box(1));
+        })
+    });
+}
+
+fn bench_add_02(c: &mut Criterion) {
+    let mut i = 0;
+    c.bench_function("add i and i+1", |b| {
+        b.iter(|| {
+            add(black_box(i), black_box(i + 1));
+            i += 1;
+        })
+    });
+}
 
 fn bench_atomic(c: &mut Criterion) {
     let mut i = 0;
@@ -29,5 +48,11 @@ fn bench_mutex(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_atomic, bench_mutex);
+criterion_group!(
+    benches,
+    bench_add_01,
+    bench_add_02,
+    bench_atomic,
+    bench_mutex
+);
 criterion_main!(benches);
