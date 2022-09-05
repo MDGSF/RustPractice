@@ -1,0 +1,21 @@
+[package]
+name = "diesel_demo_2"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+diesel = { version = "2.0.0", features = ["sqlite", "returning_clauses_for_sqlite_3_35"] }
+dotenvy = "0.15"
+
+[[bin]]
+name = "show_posts"
+doc = false
+
+[[bin]]
+name = "write_post"
+doc = false
+
+[lib]
+doc = false
