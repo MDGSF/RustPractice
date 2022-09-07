@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <body>
+    <h1>Websocket client</h1>
+
+    <input id="url" type="text" placeholder="Type URL" style="width:20em;" 
+           value="ws://localhost:3000/ws" />
+    <button id="connect">connect</button>
+    <div style="height: 0.3em;">&nbsp;</div>
+
+    <input id="message" type="text" placeholder="Type message" style="width: 20em;" />
+    <button id="send">send message</button>
+    <div style="margin-top: 1em;">Event log:</div>
+    <div id="log" style="background:#eee; height:10em; padding:0.5em;"></div>
+  </body>
+
+  <script>
+function E(id) {
+  return document.getElementById(id);
+}
+var url = E('url');
+var connect = E('connect');
+var message = E('message');
+var send = E('send');
+var log = E('log');
+
+function enable(en) {
+  message.disabled = !en;
+  send.disabled = !en;
+  url.disabled = en;
+  connect.innerHTML = en ? 'disconnect' : 'connect';
+}
+enable(false);
+
+var ws;
+
+connect.onclick = function() {
+  if (ws) {
+    ws.close();
+    return;
+  }
+  ws = new WebSocket(url.value);
+  if (!ws) {
+    return;
+  }
+  ws.onopen = function() {
+    log.innerHTML += 'connection opened<br/>';
+  }
+  ws.onmessage = function(ev) {
+    log.innerHTML += 'received: ' + ev.data + '<br/>';
+  }
+  ws.onerror = function(ev) {
+    log.innerHTML += 'error: ' + ev + '<br/>';
+  }
+  ws.onclose = function() {
+    log.innerHTML += 'connection closed<br/>';
+    enable(false);
+    ws = null;
+  }
+  enable(true);
+}
+
+send.onclick = function() {
+  if (!ws) {
+    return;
+  }
+  log.innerHTML += 'send: ' + message.value + '<br/>';
+  ws.send(message.value);
+}
+  </script>
+</html>
