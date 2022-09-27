@@ -1,8 +1,23 @@
 use actix_multipart::Multipart;
-use actix_web::{web, Error, HttpResponse};
+use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use futures_util::TryStreamExt as _;
+use serde::{Deserialize, Serialize};
 use std::io::Write;
 use uuid::Uuid;
+
+pub async fn view_upload() -> HttpResponse {
+    let html = r#"<html>
+        <head><title>Upload File</title></head>
+        <body>
+            <form target="/" method="post" enctype="multipart/form-data">
+                <input type="file" multiple name="file"/>
+                <button type="submit">Submit</button>
+            </form>
+        </body>
+    </html>"#;
+
+    HttpResponse::Ok().body(html)
+}
 
 pub async fn upload_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
     // iterate over multipart stream
@@ -28,16 +43,17 @@ pub async fn upload_file(mut payload: Multipart) -> Result<HttpResponse, Error> 
     Ok(HttpResponse::Ok().into())
 }
 
-pub async fn view() -> HttpResponse {
-    let html = r#"<html>
-        <head><title>Upload File</title></head>
-        <body>
-            <form target="/" method="post" enctype="multipart/form-data">
-                <input type="file" multiple name="file"/>
-                <button type="submit">Submit</button>
-            </form>
-        </body>
-    </html>"#;
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DownLoadInput {
+    filename: String,
+}
 
-    HttpResponse::Ok().body(html)
+pub async fn download_file(req: HttpRequest, input: web::Query<DownLoadInput>) -> impl Responder {
+    let file_path = std::path::PathBuf::from(&input.filename.clone())
+        .as_path()
+        .to_owned();
+
+    let file = actix_files::NamedFile::open_async(file_path).await.unwrap();
+
+    file.into_response(&req)
 }

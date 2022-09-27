@@ -1,7 +1,7 @@
 use actix_web::{middleware, web, App, HttpServer};
 
+mod file;
 mod hello;
-mod upload_file;
 mod wsserver;
 
 #[actix_web::main] // or #[tokio::main]
@@ -21,8 +21,11 @@ async fn main() -> std::io::Result<()> {
             .service(hello::greet)
             .service(
                 web::resource("/upload")
-                    .route(web::get().to(upload_file::view))
-                    .route(web::post().to(upload_file::upload_file)),
+                    .route(web::get().to(file::view_upload))
+                    .route(web::post().to(file::upload_file)),
+            )
+            .service(
+                web::resource("/download").route(web::get().to(file::download_file)),
             )
             .service(web::resource("/wsview").to(wsserver::view))
             .service(web::resource("/ws").route(web::get().to(wsserver::echo_ws)))
