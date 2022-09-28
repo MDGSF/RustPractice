@@ -1,5 +1,8 @@
 use actix_web::{middleware, web, App, HttpServer};
 
+mod utils;
+mod exec1;
+mod exec2;
 mod file;
 mod hello;
 mod wsserver;
@@ -24,9 +27,9 @@ async fn main() -> std::io::Result<()> {
                     .route(web::get().to(file::view_upload))
                     .route(web::post().to(file::upload_file)),
             )
-            .service(
-                web::resource("/download").route(web::get().to(file::download_file)),
-            )
+            .service(web::resource("/download").route(web::get().to(file::download_file)))
+            .service(web::resource("/exec1").to(exec1::exec1))
+            .service(web::resource("/exec2").to(exec2::exec2))
             .service(web::resource("/wsview").to(wsserver::view))
             .service(web::resource("/ws").route(web::get().to(wsserver::echo_ws)))
     })
