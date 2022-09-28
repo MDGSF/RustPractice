@@ -4,10 +4,14 @@ use actix::prelude::*;
 use actix_files::NamedFile;
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
+use std::io::Write;
 use std::path::PathBuf;
+use std::pin::Pin;
 use std::process::Stdio;
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use std::time::{Duration, Instant};
-use tokio::process::{Command, Child, ChildStdin, ChildStdout, ChildStderr};
+use tokio_stream::{Stream, StreamExt, StreamMap};
+use tokio::io::AsyncReadExt;
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -37,8 +41,8 @@ pub struct MyWebSocket {
     input: ExecInput,
     child: Child,
     child_stdin: ChildStdin,
-    child_stdout: ChildStdout,
-    child_stderr: ChildStderr,
+    child_stdout: Option<ChildStdout>,
+    child_stderr: Option<ChildStderr>,
 }
 
 impl MyWebSocket {
@@ -48,11 +52,11 @@ impl MyWebSocket {
             .arg(&input.cmd)
             .current_dir(
                 input
-                .working_directory
-                .as_ref()
-                .map_or(std::env::current_dir().unwrap(), |working_directory| {
-                    PathBuf::from(&working_directory)
-                }),
+                    .working_directory
+                    .as_ref()
+                    .map_or(std::env::current_dir().unwrap(), |working_directory| {
+                        PathBuf::from(&working_directory)
+                    }),
             )
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -69,8 +73,8 @@ impl MyWebSocket {
             input,
             child,
             child_stdin: stdin,
-            child_stdout: stdout,
-            child_stderr: stderr,
+            child_stdout: Some(stdout),
+            child_stderr: Some(stderr),
         }
     }
 
@@ -95,8 +99,43 @@ impl MyWebSocket {
         });
     }
 
-    fn exec(&self, _ctx: &mut <Self as Actor>::Context) {
-        tokio::spawn(async {
+    fn exec(&mut self, ctx: &mut <Self as Actor>::Context) {
+        let mut stdout: tokio::process::ChildStdout =
+            tokio::process::ChildStdout::from_std(self.child_stdout.take().unwrap()).unwrap();
+        let mut stderr: tokio::process::ChildStderr =
+            tokio::process::ChildStderr::from_std(self.child_stderr.take().unwrap()).unwrap();
+
+        tokio::spawn(async move {
+            let rx1 = Box::pin(async_stream::stream! {
+                loop {
+                    let mut buf = [0; 1024];
+                    let n = stdout.read(&mut buf).await.unwrap();
+                    yield buf[..n].to_vec();
+                }
+            }) as Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
+
+            let rx2 = Box::pin(async_stream::stream! {
+                loop {
+                    let mut buf = [0; 1024];
+                    let n = stderr.read(&mut buf).await.unwrap();
+                    yield buf[..n].to_vec();
+                }
+            }) as Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
+
+            let mut map = StreamMap::new();
+
+            // Insert both streams
+            map.insert("child_stdout", rx1);
+            map.insert("child_stderr", rx2);
+
+            loop {
+                let (key, val) = map.next().await.unwrap();
+                if key == "child_stdout" {
+                    //ctx.binary(val)
+                } else if key == "child_stderr" {
+                    //ctx.binary(val)
+                }
+            }
         });
     }
 }
@@ -125,7 +164,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
                 self.hb = Instant::now();
             }
             Ok(ws::Message::Text(text)) => ctx.text(text),
-            Ok(ws::Message::Binary(bin)) => ctx.binary(bin),
+            Ok(ws::Message::Binary(bin)) => {
+                //ctx.binary(bin)
+                self.child_stdin.write_all(&bin).unwrap();
+                self.child_stdin.flush().unwrap();
+            }
             Ok(ws::Message::Close(reason)) => {
                 ctx.close(reason);
                 ctx.stop();
@@ -140,3 +183,4 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
 // https://doc.rust-lang.org/std/process/struct.ChildStdout.html
 // https://docs.rs/async-stream/latest/async_stream/
 // https://docs.rs/tokio-stream/0.1.10/tokio_stream/
+// https://docs.rs/tokio-stream/0.1.10/tokio_stream/struct.StreamMap.html
