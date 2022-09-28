@@ -1,8 +1,13 @@
+use crate::exec::ExecInput;
+use crate::utils;
 use actix::prelude::*;
 use actix_files::NamedFile;
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
+use std::path::PathBuf;
+use std::process::Stdio;
 use std::time::{Duration, Instant};
+use tokio::process::{Command, Child, ChildStdin, ChildStdout, ChildStderr};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -15,8 +20,12 @@ pub async fn view() -> impl Responder {
 }
 
 /// WebSocket handshake and start `MyWebSocket` actor.
-pub async fn echo_ws(req: HttpRequest, stream: web::Payload) -> Result<HttpResponse, Error> {
-    ws::start(MyWebSocket::new(), &req, stream)
+pub async fn echo_ws(
+    input: web::Query<ExecInput>,
+    req: HttpRequest,
+    stream: web::Payload,
+) -> Result<HttpResponse, Error> {
+    ws::start(MyWebSocket::new(input.into_inner()), &req, stream)
 }
 
 /// websocket connection is long running connection, it easier
@@ -25,11 +34,44 @@ pub struct MyWebSocket {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
+    input: ExecInput,
+    child: Child,
+    child_stdin: ChildStdin,
+    child_stdout: ChildStdout,
+    child_stderr: ChildStderr,
 }
 
 impl MyWebSocket {
-    pub fn new() -> Self {
-        Self { hb: Instant::now() }
+    pub fn new(input: ExecInput) -> Self {
+        let mut child = Command::new(utils::guess_shell())
+            .arg("-c")
+            .arg(&input.cmd)
+            .current_dir(
+                input
+                .working_directory
+                .as_ref()
+                .map_or(std::env::current_dir().unwrap(), |working_directory| {
+                    PathBuf::from(&working_directory)
+                }),
+            )
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("ws command failed to start");
+
+        let stdin = child.stdin.take().unwrap();
+        let stdout = child.stdout.take().unwrap();
+        let stderr = child.stderr.take().unwrap();
+
+        Self {
+            hb: Instant::now(),
+            input,
+            child,
+            child_stdin: stdin,
+            child_stdout: stdout,
+            child_stderr: stderr,
+        }
     }
 
     /// helper method that sends ping to client every 5 seconds (HEARTBEAT_INTERVAL).
@@ -52,6 +94,11 @@ impl MyWebSocket {
             ctx.ping(b"");
         });
     }
+
+    fn exec(&self, _ctx: &mut <Self as Actor>::Context) {
+        tokio::spawn(async {
+        });
+    }
 }
 
 impl Actor for MyWebSocket {
@@ -60,6 +107,7 @@ impl Actor for MyWebSocket {
     /// Method is called on actor start. We start the heartbeat process here.
     fn started(&mut self, ctx: &mut Self::Context) {
         self.hb(ctx);
+        self.exec(ctx);
     }
 }
 
@@ -92,4 +140,3 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
 // https://doc.rust-lang.org/std/process/struct.ChildStdout.html
 // https://docs.rs/async-stream/latest/async_stream/
 // https://docs.rs/tokio-stream/0.1.10/tokio_stream/
-
