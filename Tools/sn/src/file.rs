@@ -48,6 +48,7 @@ pub struct DownLoadInput {
     filename: String,
 }
 
+/// curl -o foo http://192.168.2.101:8080/download\?filename\=/home/huangjian/foo
 pub async fn download_file(req: HttpRequest, input: web::Query<DownLoadInput>) -> impl Responder {
     let file_path = std::path::PathBuf::from(&input.filename.clone())
         .as_path()

@@ -1,10 +1,12 @@
 use actix_web::{middleware, web, App, HttpServer};
 
-mod utils;
+mod exec;
 mod exec1;
 mod exec2;
+mod exec3;
 mod file;
 mod hello;
+mod utils;
 mod wsserver;
 
 #[actix_web::main] // or #[tokio::main]
@@ -30,6 +32,7 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/download").route(web::get().to(file::download_file)))
             .service(web::resource("/exec1").to(exec1::exec1))
             .service(web::resource("/exec2").to(exec2::exec2))
+            .service(web::resource("/exec3").to(exec3::exec3))
             .service(web::resource("/wsview").to(wsserver::view))
             .service(web::resource("/ws").route(web::get().to(wsserver::echo_ws)))
     })
