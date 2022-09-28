@@ -4,6 +4,9 @@ use actix_web::{web, Responder};
 use std::path::PathBuf;
 use tokio::process::Command;
 
+/// - bash -c "cmd string"
+/// - sh -c "cmd string"
+///
 /// ### example1
 /// ```sh
 /// curl -G \

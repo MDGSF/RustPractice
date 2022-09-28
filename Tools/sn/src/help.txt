@@ -1,0 +1,43 @@
+# sn document
+
+- /help         Show this help document.
+- /upload       Upload file.
+- /download     Download file.
+- /wsview       HTML page show websocket client.
+- /ws           Websocket connection.
+- /exec1        Execute command until finish, return stdout.
+- /exec2        Execute command until finish, return stderr.
+- /exec3        Execute command in background, return immediately.
+                This mode redirect stdin, stdout, stderr all to /dev/null.
+- /exec4        Execute command in background, return immediately.
+                This mode stdin, stdout, stderr all inherit from parent.
+
+
+- /exec1, /exec2, /exec3
+    `bash -c "command string"` or
+    `sh -c "command string"`
+    If bash found use bash, else use sh.
+- /exec4
+    Execute `"command string"` directly, no use `bash -c` or `sh -c`.
+
+
+## Examples:
+
+```sh
+# Excute `bash -c "ls -lh"`, and return stdout.
+curl -G \
+  --data-urlencode "cmd=ls -lh" \
+  http://192.168.2.101:8080/exec1
+```
+
+```sh
+# Excute `bash -c "ls -lh"`,
+# and set working_directory to `/home/mdgsf`,
+# and return stdout.
+curl -G \
+  --data-urlencode "cmd=ls -lh" \
+  --data-urlencode "working_directory=/home/mdgsf" \
+  http://192.168.2.101:8080/exec1
+```
+
+
