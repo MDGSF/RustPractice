@@ -10,8 +10,8 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
 use std::time::{Duration, Instant};
-use tokio_stream::{Stream, StreamExt, StreamMap};
 use tokio::io::AsyncReadExt;
+use tokio_stream::{Stream, StreamExt, StreamMap};
 
 /// How often heartbeat pings are sent
 const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(5);
@@ -107,7 +107,7 @@ impl MyWebSocket {
         let addr = ctx.address();
 
         tokio::spawn(async move {
-            let rx1 = Box::pin(async_stream::stream! {
+            let child_stdout = Box::pin(async_stream::stream! {
                 loop {
                     let mut buf = [0; 1024];
                     let n = stdout.read(&mut buf).await.unwrap();
@@ -118,7 +118,7 @@ impl MyWebSocket {
                 }
             }) as Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
 
-            let rx2 = Box::pin(async_stream::stream! {
+            let child_stderr = Box::pin(async_stream::stream! {
                 loop {
                     let mut buf = [0; 1024];
                     let n = stderr.read(&mut buf).await.unwrap();
@@ -130,10 +130,8 @@ impl MyWebSocket {
             }) as Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
 
             let mut map = StreamMap::new();
-
-            // Insert both streams
-            map.insert("child_stdout", rx1);
-            map.insert("child_stderr", rx2);
+            map.insert("child_stdout", child_stdout);
+            map.insert("child_stderr", child_stderr);
 
             loop {
                 let msg = map.next().await;
@@ -150,11 +148,15 @@ impl MyWebSocket {
                 }
 
                 if key == "child_stdout" {
-                    addr.do_send(StdoutMsg(val));
+                    addr.do_send(ChildStdoutMsg(val));
                 } else if key == "child_stderr" {
-                    addr.do_send(StderrMsg(val));
+                    addr.do_send(ChildStderrMsg(val));
                 }
-            }
+            } // loop
+
+            addr.do_send(ChildEnd);
+
+            log::info!("child thread output finished");
         });
     }
 }
@@ -167,33 +169,49 @@ impl Actor for MyWebSocket {
         self.hb(ctx);
         self.exec(ctx);
     }
+
+    fn stopped(&mut self, _ctx: &mut Self::Context) {
+        let _ = self.child.kill();
+    }
 }
 
-struct StdoutMsg(Vec<u8>);
-impl Message for StdoutMsg {
+struct ChildStdoutMsg(Vec<u8>);
+impl Message for ChildStdoutMsg {
     type Result = ();
 }
 
-struct StderrMsg(Vec<u8>);
-impl Message for StderrMsg {
+struct ChildStderrMsg(Vec<u8>);
+impl Message for ChildStderrMsg {
     type Result = ();
 }
 
-impl Handler<StdoutMsg> for MyWebSocket {
+#[derive(Debug, Message)]
+#[rtype(result = "()")]
+struct ChildEnd;
+
+impl Handler<ChildStdoutMsg> for MyWebSocket {
     type Result = ();
 
-    fn handle(&mut self, msg: StdoutMsg, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ChildStdoutMsg, ctx: &mut Self::Context) -> Self::Result {
         log::info!("handler stdout msg");
         ctx.binary(msg.0)
     }
 }
 
-impl Handler<StderrMsg> for MyWebSocket {
+impl Handler<ChildStderrMsg> for MyWebSocket {
     type Result = ();
 
-    fn handle(&mut self, msg: StderrMsg, ctx: &mut Self::Context) -> Self::Result {
+    fn handle(&mut self, msg: ChildStderrMsg, ctx: &mut Self::Context) -> Self::Result {
         log::info!("handler stderr msg");
         ctx.binary(msg.0)
+    }
+}
+
+impl Handler<ChildEnd> for MyWebSocket {
+    type Result = ();
+
+    fn handle(&mut self, _: ChildEnd, ctx: &mut Self::Context) -> Self::Result {
+        ctx.stop()
     }
 }
 
@@ -220,7 +238,9 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for MyWebSocket {
                 ctx.close(reason);
                 ctx.stop();
             }
-            _ => ctx.stop(),
+            _ => {
+                ctx.stop();
+            }
         }
     }
 }

@@ -22,7 +22,7 @@ impl Handler<WhoAmI> for MyActor {
 
 #[actix::main]
 async fn main() {
-    let addr = MyActor { }.start();
-    let who_addr = addr.send(WhoAmI{}).await.unwrap().unwrap();
+    let addr = MyActor {}.start();
+    let who_addr = addr.send(WhoAmI {}).await.unwrap().unwrap();
     assert_eq!(addr, who_addr);
 }

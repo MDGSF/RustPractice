@@ -16,7 +16,7 @@ async fn main() {
     let mut cmd_rx = UnboundedReceiverStream::new(cmd_rx);
 
     // run blocking terminal input reader on separate thread
-    let input_thread = thread::spawn(move || loop {
+    let _input_thread = thread::spawn(move || loop {
         let mut cmd = String::with_capacity(32);
 
         if io::stdin().read_line(&mut cmd).is_err() {
@@ -25,6 +25,14 @@ async fn main() {
         }
 
         cmd_tx.send(cmd).unwrap();
+    });
+
+    let (hb_tx, hb_rx) = mpsc::unbounded_channel();
+    let mut hb_rx = UnboundedReceiverStream::new(hb_rx);
+
+    let _hb_thread = thread::spawn(move || loop {
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+        hb_tx.send(()).unwrap();
     });
 
     let (res, mut ws) = awc::Client::new()
@@ -36,7 +44,7 @@ async fn main() {
     log::debug!("response: {res:?}");
     log::info!("connected; server will echo messages sent");
 
-    loop {
+    'outer: loop {
         select! {
             Some(msg) = ws.next() => {
                 match msg {
@@ -52,10 +60,26 @@ async fn main() {
 
                     Ok(ws::Frame::Ping(_)) => {
                         // respond to ping probes
-                        ws.send(ws::Message::Pong(Bytes::new())).await.unwrap();
+                        let ret = ws.send(ws::Message::Pong(Bytes::new())).await;
+                        if ret.is_err() {
+                            log::info!("ws send failed: {:?}", ret);
+                            break 'outer;
+                        }
                     }
 
-                    _ => {}
+                    Ok(ws::Frame::Pong(_)) => {
+                        // do nothing
+                    }
+
+                    Ok(ws::Frame::Close(reason)) => {
+                        log::info!("Server: {reason:?}");
+                        break 'outer;
+                    }
+
+                    _ => {
+                        log::info!("Server: {msg:?}");
+                        break 'outer;
+                    }
                 }
             }
 
@@ -64,12 +88,25 @@ async fn main() {
                     continue;
                 }
 
-                ws.send(ws::Message::Text(cmd.into())).await.unwrap();
+                let ret = ws.send(ws::Message::Text(cmd.into())).await;
+                if ret.is_err() {
+                    log::info!("ws send failed: {:?}", ret);
+                    break 'outer;
+                }
             }
 
-            else => break
+            Some(_) = hb_rx.next() => {
+                let ret = ws.send(ws::Message::Ping(Bytes::new())).await;
+                if ret.is_err() {
+                    log::info!("ws send failed: {:?}", ret);
+                    break 'outer;
+                }
+            }
+
+            else => break 'outer
         }
     }
 
-    input_thread.join().unwrap();
+    //input_thread.join().unwrap();
+    //hb_thread.join().unwrap();
 }
