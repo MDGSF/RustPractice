@@ -7,16 +7,7 @@ use std::io::Write;
 use uuid::Uuid;
 
 pub async fn view_upload() -> HttpResponse {
-    let html = r#"<html>
-        <head><title>Upload File</title></head>
-        <body>
-            <form target="/" method="post" enctype="multipart/form-data">
-                <input type="file" multiple name="file"/>
-                <button type="submit">Submit</button>
-            </form>
-        </body>
-    </html>"#;
-
+    let html = include_str!("../static/file.html");
     HttpResponse::Ok().body(html)
 }
 
