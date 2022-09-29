@@ -3,7 +3,6 @@
 - /help         Show this help document.
 - /upload       Upload file.
 - /download     Download file.
-- /wsview       HTML page show websocket client.
 - /ws           Websocket connection.
 - /exec1        Execute command until finish, return stdout.
 - /exec2        Execute command until finish, return stderr.
@@ -39,5 +38,4 @@ curl -G \
   --data-urlencode "working_directory=/home/mdgsf" \
   http://192.168.2.101:8080/exec1
 ```
-
 

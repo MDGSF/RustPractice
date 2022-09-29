@@ -1,5 +1,3 @@
-use actix_web::{middleware, web, App, HttpServer};
-
 mod exec;
 mod exec1;
 mod exec2;
@@ -11,13 +9,37 @@ mod help;
 mod utils;
 mod wsserver;
 
+use actix_web::{middleware, web, App, HttpServer};
+use clap::Parser;
+
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Server IP address
+    #[arg(short, long)]
+    ip: Option<String>,
+
+    /// Server port number
+    #[arg(short, long)]
+    port: Option<u16>,
+
+    /// Server worker thread number
+    #[arg(short, long, default_value_t = 4)]
+    workers: usize,
+}
+
 #[actix_web::main] // or #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    let args = Args::parse();
+    let ip = args.ip.unwrap_or("0.0.0.0".to_string());
+    let port = args.port.unwrap_or(8080);
+    let workers = args.workers.max(1);
+
     //std::env::set_var("RUST_LOG", "sn=info;actix_web=info");
     //RUST_LOG=sn=info;actix=info cargo run
-
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
-    log::info!("starting HTTP server at http://0.0.0.0:8080");
+    log::info!("Starting HTTP server at http://{}:{}", ip, port);
 
     std::fs::create_dir_all("./tmp")?;
 
@@ -40,8 +62,8 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/exec3").to(exec3::exec3))
             .service(web::resource("/exec4").to(exec4::exec4))
     })
-    .workers(4)
-    .bind(("0.0.0.0", 8080))?
+    .workers(workers)
+    .bind((ip, port))?
     .run()
     .await
 }
