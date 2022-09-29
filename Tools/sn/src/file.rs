@@ -1,3 +1,4 @@
+use crate::utils;
 use actix_multipart::Multipart;
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
 use futures_util::TryStreamExt as _;
@@ -19,7 +20,19 @@ pub async fn view_upload() -> HttpResponse {
     HttpResponse::Ok().body(html)
 }
 
-pub async fn upload_file(mut payload: Multipart) -> Result<HttpResponse, Error> {
+#[derive(Clone, Debug, Deserialize)]
+pub struct UploadInput {
+    pub directory: String,
+}
+
+pub async fn upload_file(
+    input: web::Query<UploadInput>,
+    mut payload: Multipart,
+) -> Result<HttpResponse, Error> {
+    if !utils::dir_exists(&input.directory) {
+        std::fs::create_dir_all(&input.directory)?;
+    }
+
     // iterate over multipart stream
     while let Some(mut field) = payload.try_next().await? {
         // A multipart/form-data stream has to contain `content_disposition`
@@ -28,7 +41,8 @@ pub async fn upload_file(mut payload: Multipart) -> Result<HttpResponse, Error> 
         let filename = content_disposition
             .get_filename()
             .map_or_else(|| Uuid::new_v4().to_string(), sanitize_filename::sanitize);
-        let filepath = format!("./tmp/{filename}");
+        let filepath = format!("{0}/{filename}", input.directory);
+        log::info!("filepath: {}", filepath);
 
         // File::create is blocking operation, use threadpool
         let mut f = web::block(|| std::fs::File::create(filepath)).await??;
