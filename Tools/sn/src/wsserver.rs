@@ -38,7 +38,6 @@ pub struct MyWebSocket {
     /// Client must send ping at least once per 10 seconds (CLIENT_TIMEOUT),
     /// otherwise we drop connection.
     hb: Instant,
-    input: ExecInput,
     child: Child,
     child_stdin: ChildStdin,
     child_stdout: Option<ChildStdout>,
@@ -70,7 +69,6 @@ impl MyWebSocket {
 
         Self {
             hb: Instant::now(),
-            input,
             child,
             child_stdin: stdin,
             child_stdout: Some(stdout),
@@ -104,6 +102,7 @@ impl MyWebSocket {
             tokio::process::ChildStdout::from_std(self.child_stdout.take().unwrap()).unwrap();
         let mut stderr: tokio::process::ChildStderr =
             tokio::process::ChildStderr::from_std(self.child_stderr.take().unwrap()).unwrap();
+        let addr = ctx.address();
 
         tokio::spawn(async move {
             let rx1 = Box::pin(async_stream::stream! {
@@ -131,9 +130,9 @@ impl MyWebSocket {
             loop {
                 let (key, val) = map.next().await.unwrap();
                 if key == "child_stdout" {
-                    //ctx.binary(val)
+                    addr.do_send(StdoutMsg(val));
                 } else if key == "child_stderr" {
-                    //ctx.binary(val)
+                    addr.do_send(StdoutMsg(val));
                 }
             }
         });
@@ -147,6 +146,20 @@ impl Actor for MyWebSocket {
     fn started(&mut self, ctx: &mut Self::Context) {
         self.hb(ctx);
         self.exec(ctx);
+    }
+}
+
+struct StdoutMsg(Vec<u8>);
+
+impl Message for StdoutMsg {
+    type Result = ();
+}
+
+impl Handler<StdoutMsg> for MyWebSocket {
+    type Result = ();
+
+    fn handle(&mut self, msg: StdoutMsg, ctx: &mut Self::Context) -> Self::Result {
+        ctx.binary(msg.0)
     }
 }
 

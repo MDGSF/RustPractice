@@ -13,6 +13,18 @@ path = "src/main.rs"
 name = "wsclient"
 path = "src/wsclient.rs"
 
+[[bin]]
+name = "ping"
+path = "src/ping.rs"
+
+[[bin]]
+name = "whoami"
+path = "src/whoami.rs"
+
+[[bin]]
+name = "fibonacci"
+path = "src/fibonacci.rs"
+
 [dependencies]
 actix = "0.13"
 actix-codec = "0.5"
