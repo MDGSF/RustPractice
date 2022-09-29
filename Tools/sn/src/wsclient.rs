@@ -28,7 +28,7 @@ async fn main() {
     });
 
     let (res, mut ws) = awc::Client::new()
-        .ws("ws://127.0.0.1:8080/ws")
+        .ws("ws://127.0.0.1:8080/ws?cmd=/tmp/echo_path.sh")
         .connect()
         .await
         .unwrap();
@@ -41,6 +41,11 @@ async fn main() {
             Some(msg) = ws.next() => {
                 match msg {
                     Ok(ws::Frame::Text(txt)) => {
+                        // log echoed messages from server
+                        log::info!("Server: {txt:?}")
+                    }
+
+                    Ok(ws::Frame::Binary(txt)) => {
                         // log echoed messages from server
                         log::info!("Server: {txt:?}")
                     }

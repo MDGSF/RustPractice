@@ -29,6 +29,7 @@ pub async fn echo_ws(
     req: HttpRequest,
     stream: web::Payload,
 ) -> Result<HttpResponse, Error> {
+    log::info!("ws: {:?}", input);
     ws::start(MyWebSocket::new(input.into_inner()), &req, stream)
 }
 
@@ -57,7 +58,7 @@ impl MyWebSocket {
                         PathBuf::from(&working_directory)
                     }),
             )
-            .stdin(Stdio::null())
+            .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
@@ -98,6 +99,7 @@ impl MyWebSocket {
     }
 
     fn exec(&mut self, ctx: &mut <Self as Actor>::Context) {
+        log::info!("exec start");
         let mut stdout: tokio::process::ChildStdout =
             tokio::process::ChildStdout::from_std(self.child_stdout.take().unwrap()).unwrap();
         let mut stderr: tokio::process::ChildStderr =
@@ -109,6 +111,9 @@ impl MyWebSocket {
                 loop {
                     let mut buf = [0; 1024];
                     let n = stdout.read(&mut buf).await.unwrap();
+                    if n == 0 {
+                        break;
+                    }
                     yield buf[..n].to_vec();
                 }
             }) as Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
@@ -117,6 +122,9 @@ impl MyWebSocket {
                 loop {
                     let mut buf = [0; 1024];
                     let n = stderr.read(&mut buf).await.unwrap();
+                    if n == 0 {
+                        break;
+                    }
                     yield buf[..n].to_vec();
                 }
             }) as Pin<Box<dyn Stream<Item = Vec<u8>> + Send>>;
@@ -128,11 +136,23 @@ impl MyWebSocket {
             map.insert("child_stderr", rx2);
 
             loop {
-                let (key, val) = map.next().await.unwrap();
+                let msg = map.next().await;
+                if msg.is_none() {
+                    break;
+                }
+
+                let (key, val) = msg.unwrap();
+                log::info!("exec loop, key = {}", key);
+                log::info!("exec loop, val = {:?}", std::str::from_utf8(&val).unwrap());
+
+                if val.len() == 0 {
+                    break;
+                }
+
                 if key == "child_stdout" {
                     addr.do_send(StdoutMsg(val));
                 } else if key == "child_stderr" {
-                    addr.do_send(StdoutMsg(val));
+                    addr.do_send(StderrMsg(val));
                 }
             }
         });
@@ -150,8 +170,12 @@ impl Actor for MyWebSocket {
 }
 
 struct StdoutMsg(Vec<u8>);
-
 impl Message for StdoutMsg {
+    type Result = ();
+}
+
+struct StderrMsg(Vec<u8>);
+impl Message for StderrMsg {
     type Result = ();
 }
 
@@ -159,6 +183,16 @@ impl Handler<StdoutMsg> for MyWebSocket {
     type Result = ();
 
     fn handle(&mut self, msg: StdoutMsg, ctx: &mut Self::Context) -> Self::Result {
+        log::info!("handler stdout msg");
+        ctx.binary(msg.0)
+    }
+}
+
+impl Handler<StderrMsg> for MyWebSocket {
+    type Result = ();
+
+    fn handle(&mut self, msg: StderrMsg, ctx: &mut Self::Context) -> Self::Result {
+        log::info!("handler stderr msg");
         ctx.binary(msg.0)
     }
 }
