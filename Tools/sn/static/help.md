@@ -57,7 +57,7 @@ http \
 ```sh
 # Upload file (binary)
 curl --location --request POST \
-  'http://192.168.2.101:8080/upload/binary?filename=/home/mdgsf/one.jpg' \
+  'http://127.0.0.1:8080/upload/binary?filename=/home/mdgsf/one.jpg' \
   --data-binary '@/home/mdgsf/bb/one.jpg'
 
 # Content-Type (option)

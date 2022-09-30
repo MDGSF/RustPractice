@@ -1,0 +1,22 @@
+<html>
+  <head><title>Static File</title></head>
+  <body>
+    <div>
+      <ul>
+      {% for entry in entries %}
+        <li>
+          {% if entry.is_file %}
+          - {{entry.name}}
+          {% endif %}
+          {% if entry.is_dir %}
+          d 
+          <a href="/static?directory={{entry.filepath}}">
+            {{entry.name}}
+          </a>
+          {% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+    </div>
+  </body>
+</html>

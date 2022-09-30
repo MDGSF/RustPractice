@@ -51,3 +51,4 @@ sanitize-filename = "0.4"
 uuid = { version = "1", features = ["v4"] }
 clap = { version = "4.0.2", features = ["derive"] }
 
+tera = "1.17.1"

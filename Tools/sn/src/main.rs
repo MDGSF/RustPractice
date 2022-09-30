@@ -6,6 +6,7 @@ mod exec4;
 mod file;
 mod hello;
 mod help;
+mod static_file;
 mod utils;
 mod wsserver;
 
@@ -47,12 +48,15 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/").to(hello::index))
             .service(hello::greet)
             .service(web::resource("/help").to(help::help))
+            .service(web::resource("/static").to(static_file::view_static))
             .service(
                 web::resource("/upload")
                     .route(web::get().to(file::view_upload))
                     .route(web::post().to(file::upload_file)),
             )
-            .service(web::resource("/upload/binary").route(web::post().to(file::upload_file_binary)))
+            .service(
+                web::resource("/upload/binary").route(web::post().to(file::upload_file_binary)),
+            )
             .service(web::resource("/download").route(web::get().to(file::download_file)))
             .service(web::resource("/wsview").to(wsserver::view))
             .service(web::resource("/ws").route(web::get().to(wsserver::echo_ws)))
