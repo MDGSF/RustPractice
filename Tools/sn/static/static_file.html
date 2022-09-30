@@ -1,12 +1,18 @@
 <html>
-  <head><title>Static File</title></head>
+  <head>
+    <meta charset="utf-8">
+    <title>Static File</title>
+  </head>
   <body>
     <div>
       <ul>
       {% for entry in entries %}
         <li>
           {% if entry.is_file %}
-          - {{entry.name}}
+          - 
+          <a href="/download?filename={{entry.filepath}}">
+            {{entry.name}}
+          </a>
           {% endif %}
           {% if entry.is_dir %}
           d 
