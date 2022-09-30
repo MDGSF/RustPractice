@@ -1,6 +1,7 @@
 use crate::utils;
 use actix_multipart::Multipart;
 use actix_web::{web, Error, HttpRequest, HttpResponse, Responder};
+use futures_util::stream::StreamExt as _;
 use futures_util::TryStreamExt as _;
 use serde::{Deserialize, Serialize};
 use std::io::Write;
@@ -21,7 +22,8 @@ pub async fn upload_file(
     mut payload: Multipart,
 ) -> Result<HttpResponse, Error> {
     if !utils::dir_exists(&input.directory) {
-        std::fs::create_dir_all(&input.directory)?;
+        let directory = input.directory.clone();
+        web::block(move || std::fs::create_dir_all(&directory)).await??;
     }
 
     // iterate over multipart stream
@@ -49,17 +51,49 @@ pub async fn upload_file(
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct UploadBinaryInput {
+    filename: String,
+}
+
+pub async fn upload_file_binary(
+    input: web::Query<UploadBinaryInput>,
+    mut body: web::Payload,
+) -> Result<HttpResponse, Error> {
+    let filepath = std::path::PathBuf::from(&input.filename.clone())
+        .as_path()
+        .to_owned();
+    log::info!("upload file binary: {:?}", filepath);
+
+    if let Some(parent) = filepath.parent() {
+        if !utils::dir_exists(&parent.to_str().unwrap()) {
+            let parent = parent.to_str().unwrap().to_owned();
+            web::block(move || std::fs::create_dir_all(&parent)).await??;
+        }
+    }
+
+    let mut file = web::block(|| std::fs::File::create(filepath)).await??;
+
+    while let Some(item) = body.next().await {
+        let item = item?;
+        file = web::block(move || file.write_all(&item).map(|_| file)).await??;
+    }
+    web::block(move || file.sync_data()).await??;
+
+    Ok(HttpResponse::Ok().into())
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct DownLoadInput {
     filename: String,
 }
 
 /// curl -o foo http://192.168.2.101:8080/download\?filename\=/home/huangjian/foo
 pub async fn download_file(req: HttpRequest, input: web::Query<DownLoadInput>) -> impl Responder {
-    let file_path = std::path::PathBuf::from(&input.filename.clone())
+    let filepath = std::path::PathBuf::from(&input.filename.clone())
         .as_path()
         .to_owned();
 
-    let file = actix_files::NamedFile::open_async(file_path).await.unwrap();
+    let file = actix_files::NamedFile::open_async(filepath).await.unwrap();
 
     file.into_response(&req)
 }

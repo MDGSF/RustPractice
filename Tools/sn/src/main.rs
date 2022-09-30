@@ -52,6 +52,7 @@ async fn main() -> std::io::Result<()> {
                     .route(web::get().to(file::view_upload))
                     .route(web::post().to(file::upload_file)),
             )
+            .service(web::resource("/upload/binary").route(web::post().to(file::upload_file_binary)))
             .service(web::resource("/download").route(web::get().to(file::download_file)))
             .service(web::resource("/wsview").to(wsserver::view))
             .service(web::resource("/ws").route(web::get().to(wsserver::echo_ws)))

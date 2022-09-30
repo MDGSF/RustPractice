@@ -1,3 +1,3 @@
 pub async fn help() -> &'static str {
-    include_str!("../static/help.txt")
+    include_str!("../static/help.md")
 }
