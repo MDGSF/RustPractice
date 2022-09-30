@@ -1,57 +1,90 @@
 <html>
   <head><title>Upload File</title></head>
   <body>
-    <div>
-      Remote Directory: <input id="remote_directory" type="text" />
+    <div style="margin:1em;">
+      Remote Directory: 
+      <input 
+        id="remote_directory" 
+        type="text" 
+        autocomplete="on" />
     </div>
-    <div>
-      Local File: <input id="l1" type="file" />
-      Local File: <input id="l2" type="file" />
+    <div style="margin:1em;">
+      <ul id="list">
+        <li style="margin:0.3em;">
+          Local File: <input id="l1" type="file" />
+        </li>
+      </ul>
     </div>
-    <div><button id="upload">Upload</button></div>
+    <div style="margin:1em;"><button id="add">AddFile</button></div>
+    <div style="margin:1em;"><button id="upload">Upload</button></div>
     <div id="log" style="background:#eee; height:10em; padding:0.5em;"></div>
 
     <script>
-      //https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
+//https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
 
-      function E(id) { return document.getElementById(id); }
-      const directory = E('remote_directory');
-      const upload = E('upload');
-      const log = E('log');
-      upload.onclick = function() {upload_file()};
+function E(id) { return document.getElementById(id); }
+const directory = E('remote_directory');
+const add = E('add');
+const upload = E('upload');
+const log = E('log');
+let local_file_id = 1;
 
-      async function upload_file() {
-        const files = document.querySelectorAll('input[type="file"]');
-        console.log(files);
+add.onclick = function() {add_file()};
+function add_file() {
+	const input = document.createElement("input");
+  local_file_id += 1;
+  input.setAttribute("id", `l${local_file_id}`);
+  input.setAttribute("type", "file");
 
-        const formdata = new FormData();
-        let i = 0;
-        for (const file of files) {
-          formdata.append(`file_${i}`, file.files[0]);
-          i += 1;
-          console.log(`i = ${i}`);
-        }
+	const li = document.createElement("li");
+  li.setAttribute("style", "margin:0.3em;");
+	li.appendChild(document.createTextNode("Local File: "));
+	li.appendChild(input);
 
-        const requestOptions = {
-          method: 'POST',
-          body: formdata,
-          redirect: 'follow'
-        };
+	const ul = E("list");
+	ul.appendChild(li);
+}
 
-        const response = await fetch(
-          `/upload?directory=${directory.value}`, 
-          requestOptions);
-        console.log(response);
-        if (response.status === 200) {
-          log.innerHTML = 'Upload File Success.';
-        } else {
-          log.innerHTML = `Upload File Failed.<br/>${response}`;
-        }
+upload.onclick = function() {upload_file()};
+async function upload_file() {
+  const files = document.querySelectorAll('input[type="file"]');
+  console.log(files);
 
-        //const data = await response.json();
-        const data = await response.text();
-        console.log(data);
-      }
+  const formdata = new FormData();
+  let i = 0;
+  for (const file of files) {
+    if (file.files.length > 0) {
+      formdata.append(`file_${i}`, file.files[0]);
+      i += 1;
+      console.log(`i = ${i}`);
+    }
+  }
+
+  if (i === 0) {
+    log.innerHTML = 'Please select local file to upload.';
+    return;
+  }
+
+  const requestOptions = {
+    method: 'POST',
+    body: formdata,
+    redirect: 'follow'
+  };
+
+  const response = await fetch(
+    `/upload?directory=${directory.value}`, 
+    requestOptions);
+  console.log(response);
+  if (response.status === 200) {
+    log.innerHTML = 'Upload File Success.';
+  } else {
+    log.innerHTML = `Upload File Failed.<br/>${response}`;
+  }
+
+  //const data = await response.json();
+  const data = await response.text();
+  console.log(data);
+}
     </script>
   </body>
 </html>

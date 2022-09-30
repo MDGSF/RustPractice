@@ -1,5 +1,18 @@
 # sn document
 
+- curl: `https://curl.se/`
+- httpie: `https://github.com/httpie/httpie`
+- mdcat: `https://github.com/lunaryorn/mdcat`
+
+```sh
+# Get help document.
+curl http://127.0.0.1:8080/help
+# Get help document, and use mdcat to render.
+curl http://127.0.0.1:8080/help | mdcat
+```
+
+## URL
+
 - /help         Show this help document.
 - /upload       Upload file.
 - /download     Download file.
@@ -23,10 +36,26 @@
 ## Examples:
 
 ```sh
+# (httpie) Upload one local file.
+# Upload local file `one.jpg` to remote directory `/home/huangjian/aa`.
+http \
+  --form POST \
+  "http://127.0.0.1:8080/upload?directory=/home/huangjian/aa" \
+  one@/home/huangjian/bb/one.jpg
+
+# Upload multiple local file.
+http \
+  --form POST \
+  "http://127.0.0.1:8080/upload?directory=/home/huangjian/aa" \
+  one@/home/huangjian/bb/one.jpg
+  two@/home/huangjian/bb/two.jpg
+```
+
+```sh
 # Excute `bash -c "ls -lh"`, and return stdout.
 curl -G \
   --data-urlencode "cmd=ls -lh" \
-  http://192.168.2.101:8080/exec1
+  http://127.0.0.1:8080/exec1
 ```
 
 ```sh
@@ -36,6 +65,6 @@ curl -G \
 curl -G \
   --data-urlencode "cmd=ls -lh" \
   --data-urlencode "working_directory=/home/mdgsf" \
-  http://192.168.2.101:8080/exec1
+  http://127.0.0.1:8080/exec1
 ```
 
