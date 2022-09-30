@@ -29,6 +29,23 @@ impl From<DirEntry> for OneEntry {
     }
 }
 
+impl From<&Path> for OneEntry {
+    fn from(p: &Path) -> Self {
+        let filepath = p.to_str().unwrap().to_owned();
+        let name = p
+            .file_name()
+            .map_or("".to_string(), |v| v.to_str().unwrap().to_string());
+        let is_file = p.is_file();
+        let is_dir = p.is_dir();
+        Self {
+            filepath,
+            name,
+            is_file,
+            is_dir,
+        }
+    }
+}
+
 #[derive(Serialize)]
 struct EntryList {
     entries: Vec<OneEntry>,
@@ -54,8 +71,14 @@ pub async fn view_static(input: web::Query<StaticInput>) -> HttpResponse {
 
     let mut entries = EntryList::new();
 
-    let path = Path::new(&input.directory);
-    for entry in path.read_dir().expect("read_dir call failed") {
+    let current = Path::new(&input.directory);
+    if let Some(parent) = current.parent() {
+        let mut e: OneEntry = parent.into();
+        e.name = "..".to_string();
+        entries.entries.push(e);
+    }
+
+    for entry in current.read_dir().expect("read_dir call failed") {
         if let Ok(entry) = entry {
             let e: OneEntry = entry.into();
             entries.entries.push(e);
