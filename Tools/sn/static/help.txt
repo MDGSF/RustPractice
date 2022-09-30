@@ -14,7 +14,7 @@ curl http://127.0.0.1:8080/help | mdcat
 ## URL
 
 - /help         Show this help document.
-- /upload       Upload file.
+- /upload       Upload file(multipart/form-data).
 - /download     Download file.
 - /ws           Websocket connection.
 - /exec1        Execute command until finish, return stdout.
@@ -49,6 +49,14 @@ http \
   "http://127.0.0.1:8080/upload?directory=/home/huangjian/aa" \
   one@/home/huangjian/bb/one.jpg
   two@/home/huangjian/bb/two.jpg
+```
+
+```sh
+# Download file from remote.
+# Download remote file `/home/huangjian/foo.jpg` to local.
+curl \
+  -o foo.jpg \
+  "http://127.0.0.1:8080/download?filename=/home/huangjian/foo.jpg"
 ```
 
 ```sh
