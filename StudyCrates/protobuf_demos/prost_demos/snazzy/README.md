@@ -1,0 +1,7 @@
+# sn
+
+```sh
+export CC="/home/huangjian/opt/toolchains/T1Q/20220630_2330/gcc-arm-9.2-2019.12-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc"
+export PROTOC="/home/huangjian/git/minieye/hmi/vendor/protoc/protoc-3.12.3/protoc/protoc"
+cargo build --release --target aarch64-unknown-linux-gnu
+```
