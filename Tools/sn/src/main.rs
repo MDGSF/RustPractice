@@ -6,6 +6,7 @@ mod exec4;
 mod file;
 mod hello;
 mod help;
+mod index;
 mod static_file;
 mod utils;
 mod wsserver;
@@ -45,7 +46,8 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(|| {
         App::new()
             .wrap(middleware::Logger::default())
-            .service(web::resource("/").to(hello::index))
+            .service(web::resource("/").to(index::index))
+            .service(web::resource("/hello").to(hello::index))
             .service(hello::greet)
             .service(web::resource("/help").to(help::help))
             .service(web::resource("/static").to(static_file::view_static))

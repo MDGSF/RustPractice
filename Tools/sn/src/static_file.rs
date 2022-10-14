@@ -14,8 +14,8 @@ struct OneEntry {
     is_dir: bool,
 }
 
-impl From<DirEntry> for OneEntry {
-    fn from(e: DirEntry) -> Self {
+impl From<&DirEntry> for OneEntry {
+    fn from(e: &DirEntry) -> Self {
         let filepath = e.path().to_str().unwrap().to_owned();
         let name = e.file_name().into_string().unwrap();
         let is_file = e.file_type().map_or(false, |file_type| file_type.is_file());
@@ -78,19 +78,18 @@ pub async fn view_static(input: web::Query<StaticInput>) -> HttpResponse {
         entries.entries.push(e);
     }
 
-    for entry in current.read_dir().expect("read_dir call failed") {
-        if let Ok(entry) = entry {
-            let e: OneEntry = entry.into();
-            entries.entries.push(e);
-        }
-    }
+    let mut current_entries: Vec<_> = current
+        .read_dir()
+        .expect("read_dir call failed")
+        .filter(|entry| entry.is_ok())
+        .map(|entry| entry.unwrap())
+        .collect();
+    current_entries.sort_by(|a, b| a.file_name().partial_cmp(&b.file_name()).unwrap());
 
-    //for entry in entries.entries.iter() {
-    //    println!(
-    //        "name:{}, is_file:{}, is_dir:{}, {}",
-    //        entry.name, entry.is_file, entry.is_dir, entry.filepath
-    //    );
-    //}
+    for entry in current_entries.iter() {
+        let e: OneEntry = entry.into();
+        entries.entries.push(e);
+    }
 
     let v = serde_json::to_value(entries).unwrap();
     let context = Context::from_value(v).unwrap();
