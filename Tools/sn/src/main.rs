@@ -1,3 +1,7 @@
+extern crate pnet;
+use pnet::datalink;
+use pnet::ipnetwork::IpNetwork;
+
 mod exec;
 mod exec1;
 mod exec2;
@@ -41,7 +45,21 @@ async fn main() -> std::io::Result<()> {
     //std::env::set_var("RUST_LOG", "sn=info;actix_web=info");
     //RUST_LOG=sn=info;actix=info cargo run
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+
     log::info!("Starting HTTP server at http://{}:{}", ip, port);
+    log::info!("Available on:");
+    for iface in datalink::interfaces() {
+        let ips = iface.ips;
+        for one_ip in ips.iter() {
+            match one_ip {
+                IpNetwork::V4(ipv4_network) => {
+                    let ipv4_addr = ipv4_network.ip();
+                    log::info!("http://{:?}:{}", ipv4_addr, port);
+                }
+                _ => {}
+            }
+        }
+    }
 
     HttpServer::new(|| {
         App::new()
