@@ -8,4 +8,4 @@ openssl enc -d -aes-256-cbc \
     -pbkdf2 -iter 1000 -md sha256 -base64 \
     -in "$CryptFile" \
     -out "$DecryptedFile" \
-    -pass "file:$EncKey" -p
+    -pass "file:$EncKey"
