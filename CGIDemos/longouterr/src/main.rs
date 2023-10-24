@@ -1,7 +1,16 @@
 use chrono::prelude::*;
+use std::io;
+use std::io::prelude::*;
+use std::thread;
 use std::time;
 
 fn main() {
+    thread::spawn(move || loop {
+        let mut buffer = String::new();
+        io::stdin().read_line(&mut buffer).unwrap();
+        io::stdout().write(buffer.as_bytes()).unwrap();
+    });
+
     let mut flag = true;
     loop {
         let local: DateTime<Local> = Local::now();
