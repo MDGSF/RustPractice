@@ -15,9 +15,13 @@ fn main() {
     loop {
         let local: DateTime<Local> = Local::now();
         if flag {
-            println!("[stdout] Hello, world! {:?}", local);
+            io::stdout()
+                .write(format!("[stdout] Hello, world! {:?}\n", local).as_bytes())
+                .unwrap();
         } else {
-            eprintln!("[stderr] Hello, world! {:?}", local);
+            io::stderr()
+                .write(format!("[stderr] Hello, world! {:?}\n", local).as_bytes())
+                .unwrap();
         }
         flag = !flag;
         std::thread::sleep(time::Duration::from_millis(1000));
