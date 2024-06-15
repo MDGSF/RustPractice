@@ -1,0 +1,11 @@
+[workspace]
+resolver = "2"
+members = [
+  "exec01",
+  "exec02",
+  "hello",
+  "longouterr",
+  "longstderr",
+  "longstdout",
+  "rcgi",
+]
