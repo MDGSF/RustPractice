@@ -1,0 +1,26 @@
+[package]
+name = "firstc"
+version = "0.1.0"
+authors = ["HuangJian <1342042894@qq.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0.197", features = ["derive"] }
+
+dioxus = { version = "0.5", features = ["fullstack", "router"] }
+
+# Debug
+tracing = "0.1.40"
+dioxus-logger = "0.5.0"
+chrono = { version = "0.4.38", features = ["serde"] }
+futures = "0.3.30"
+reqwest = { version = "0.12.5", features = ["json"] }
+serde_json = "1.0.118"
+async-recursion = "1.1.1"
+
+[features]
+default = []
+server = ["dioxus/axum"]
+web = ["dioxus/web"]
