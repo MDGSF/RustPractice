@@ -33,3 +33,13 @@ The `alt()` combinator will execute each parser in a tuple until it finds one
 that does not error. If all error, then by default you are given the error
 from the last error.
 
+## Composition
+
+```rust
+use nom::sequence::tuple;
+```
+
+The `tuple()` combinator takes a tuple of parsers, and either returns Ok
+with a tuple of all of their successful parses, or it returns the Err of
+the first failed parser.
+
