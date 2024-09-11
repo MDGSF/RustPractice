@@ -23,3 +23,13 @@
 - `newline`: Matches a newline character \n
 - `tab`: Matches a tab character \t
 
+## Alternatives
+
+```rust
+use nom::branch::alt;
+```
+
+The `alt()` combinator will execute each parser in a tuple until it finds one
+that does not error. If all error, then by default you are given the error
+from the last error.
+
