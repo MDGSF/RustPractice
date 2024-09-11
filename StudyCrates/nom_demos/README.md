@@ -3,6 +3,7 @@
 ## resources
 
 - <https://github.com/rust-bakery/nom>
+- <https://github.com/rust-bakery/nom/blob/main/doc/choosing_a_combinator.md>
 - <https://tfpk.github.io/nominomicon/introduction.html>
 
 ## parsers
