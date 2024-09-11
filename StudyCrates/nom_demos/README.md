@@ -18,7 +18,13 @@
   - tag
   - tag_no_case
   - take
-  - take_xxx
+  - take_till
+  - take_till1
+  - take_until
+  - take_until1
+  - take_while
+  - take_while1
+  - take_while_m_n
   - escaped
   - is_a
   - is_not
