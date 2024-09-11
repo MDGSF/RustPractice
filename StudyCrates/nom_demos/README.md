@@ -43,6 +43,17 @@
   - u32
   - u64
   - u128
+- `nom::multi`: <https://docs.rs/nom/latest/nom/multi/index.html>
+  - count
+  - many0
+  - many1
+  - many_m_n
+  - many_till
+  - separated_list0
+  - separated_list1
+  - fold_many0
+  - fold_many_m_n
+  - length_count
 
 - `tag`
 - `tag_no_case`
