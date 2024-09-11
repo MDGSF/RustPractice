@@ -25,6 +25,18 @@
 - `nom::character::complete`: <https://docs.rs/nom/latest/nom/character/complete/index.html>
   - alpha0
   - alpha1
+  - space0
+  - space1
+  - i8
+  - i16
+  - i32
+  - i64
+  - i128
+  - u8
+  - u16
+  - u32
+  - u64
+  - u128
 
 - `tag`
 - `tag_no_case`
