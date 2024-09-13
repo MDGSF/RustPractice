@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+escape8259 = "0.5.3"
 nom = "7.1.3"
