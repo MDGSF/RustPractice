@@ -1,0 +1,22 @@
+{
+  "name": "xiaoming",
+  "age": 18,
+  "address": {
+    "city": "beijing"
+  },
+  "hobby": [
+    "sing",
+    "dance",
+    "draw"
+  ],
+  "friends": [
+    {
+      "name": "xiaohong",
+      "age": 20
+    },
+    {
+      "name": "xiaohua",
+      "age": 21
+    }
+  ]
+}

@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 escape8259 = "0.5.3"
 nom = "7.1.3"
+thiserror = "1.0.63"
