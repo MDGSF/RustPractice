@@ -1,101 +1,22 @@
-use escape8259::unescape;
+use super::dbc_common_parsers::*;
+use super::dbc_error::DbcParseError;
+use super::dbc_version::dbc_version;
+use super::dbc_version::DbcVersion;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while1;
-use nom::character::complete::digit0;
-use nom::character::complete::digit1;
 use nom::character::complete::line_ending;
-use nom::character::complete::multispace0;
-use nom::character::complete::one_of;
 use nom::character::complete::space0;
 use nom::combinator::all_consuming;
 use nom::combinator::map;
 use nom::combinator::opt;
-use nom::combinator::recognize;
-use nom::error::ContextError;
-use nom::error::{ErrorKind, ParseError};
 use nom::multi::many0;
 use nom::multi::separated_list0;
 use nom::sequence::delimited;
-use nom::sequence::pair;
-use nom::sequence::preceded;
 use nom::sequence::separated_pair;
 use nom::sequence::tuple;
 use nom::IResult;
 use std::fmt;
-
-#[derive(thiserror::Error, Debug, PartialEq)]
-pub enum DbcParseError {
-    #[error("bad version")]
-    BadVersion,
-    #[error("bad names")]
-    BadNames,
-    #[error("bad bus config")]
-    BadBusConfig,
-    #[error("bad can nodes")]
-    BadCanNodes,
-    #[error("bad signal")]
-    BadSignal,
-    #[error("bad message header")]
-    BadMessageHeader,
-    #[error("bad integer")]
-    BadInt,
-    #[error("bad float")]
-    BadFloat,
-    #[error("bad escape sequence")]
-    BadEscape,
-    #[error("unknown parser error")]
-    Unparseable,
-    #[error("debug message")]
-    DebugMsg(String),
-}
-
-impl ParseError<&str> for DbcParseError {
-    // on one line, we show the error code and the input that caused it
-    fn from_error_kind(input: &str, kind: ErrorKind) -> Self {
-        let message = format!("{:?}:\t{:?}\n", kind, input);
-        log::debug!("{}", message);
-        DbcParseError::DebugMsg(message)
-    }
-
-    // if combining multiple errors, we show them one after the other
-    fn append(input: &str, kind: ErrorKind, other: Self) -> Self {
-        let message = format!("{}{:?}:\t{:?}\n", other, kind, input);
-        log::debug!("{}", message);
-        DbcParseError::DebugMsg(message)
-    }
-
-    fn from_char(input: &str, c: char) -> Self {
-        let message = format!("'{}':\t{:?}\n", c, input);
-        log::debug!("{}", message);
-        DbcParseError::DebugMsg(message)
-    }
-
-    fn or(self, other: Self) -> Self {
-        let message = format!("{}\tOR\n{}\n", self, other);
-        log::debug!("{}", message);
-        DbcParseError::DebugMsg(message)
-    }
-}
-
-impl ContextError<&str> for DbcParseError {
-    fn add_context(input: &str, ctx: &'static str, other: Self) -> Self {
-        let message = format!("{}\"{}\":\t{:?}\n", other, ctx, input);
-        log::debug!("{}", message);
-        DbcParseError::DebugMsg(message)
-    }
-}
-
-/// Version identifier of the DBC file.
-/// Format: `VERSION "<VersionIdentifier>"`
-#[derive(PartialEq, Debug, Clone)]
-pub struct DbcVersion(String);
-
-impl fmt::Display for DbcVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "VERSION \"{}\"", self.0)
-    }
-}
 
 /// Names used throughout the DBC file.
 ///
@@ -330,116 +251,6 @@ impl fmt::Display for OneDbc {
     }
 }
 
-fn spacey<F, I, O, E>(f: F) -> impl FnMut(I) -> IResult<I, O, E>
-where
-    F: FnMut(I) -> IResult<I, O, E>,
-    I: nom::InputTakeAtPosition,
-    <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
-    E: nom::error::ParseError<I>,
-{
-    delimited(space0, f, space0)
-}
-
-fn multispacey<F, I, O, E>(f: F) -> impl FnMut(I) -> IResult<I, O, E>
-where
-    F: FnMut(I) -> IResult<I, O, E>,
-    I: nom::InputTakeAtPosition,
-    <I as nom::InputTakeAtPosition>::Item: nom::AsChar + Clone,
-    E: nom::error::ParseError<I>,
-{
-    delimited(multispace0, f, multispace0)
-}
-
-fn is_nonescaped_string_char(c: char) -> bool {
-    let cv = c as u32;
-    (cv >= 0x20) && (cv != 0x22) && (cv != 0x5C)
-}
-
-// One or more unescaped text characters
-fn nonescaped_string(input: &str) -> IResult<&str, &str, DbcParseError> {
-    take_while1(is_nonescaped_string_char)(input)
-}
-
-fn escape_code(input: &str) -> IResult<&str, &str, DbcParseError> {
-    recognize(pair(
-        tag("\\"),
-        alt((
-            tag("\""),
-            tag("\\"),
-            tag("/"),
-            tag("b"),
-            tag("f"),
-            tag("n"),
-            tag("r"),
-            tag("t"),
-            tag("u"),
-        )),
-    ))(input)
-}
-
-fn string_body(input: &str) -> IResult<&str, &str, DbcParseError> {
-    recognize(many0(alt((nonescaped_string, escape_code))))(input)
-}
-
-fn string_literal(input: &str) -> IResult<&str, String, DbcParseError> {
-    let (remain, raw_string) = delimited(tag("\""), string_body, tag("\""))(input)?;
-
-    match unescape(raw_string) {
-        Ok(s) => Ok((remain, s)),
-        Err(_) => Err(nom::Err::Failure(DbcParseError::BadEscape)),
-    }
-}
-
-fn digit1to9(input: &str) -> IResult<&str, char, DbcParseError> {
-    one_of("123456789")(input)
-}
-fn uint(input: &str) -> IResult<&str, &str, DbcParseError> {
-    alt((tag("0"), recognize(pair(digit1to9, digit0))))(input)
-}
-
-fn integer_body(input: &str) -> IResult<&str, &str, DbcParseError> {
-    recognize(pair(opt(tag("-")), uint))(input)
-}
-
-fn integer_value(input: &str) -> IResult<&str, i64, DbcParseError> {
-    let (remain, raw_int) = integer_body(input)?;
-    match raw_int.parse::<i64>() {
-        Ok(i) => Ok((remain, i)),
-        Err(_) => Err(nom::Err::Failure(DbcParseError::BadInt)),
-    }
-}
-
-fn frac(input: &str) -> IResult<&str, &str, DbcParseError> {
-    recognize(pair(tag("."), digit1))(input)
-}
-
-fn exp(input: &str) -> IResult<&str, &str, DbcParseError> {
-    recognize(tuple((tag("e"), opt(alt((tag("-"), tag("+")))), digit1)))(input)
-}
-
-fn float_body(input: &str) -> IResult<&str, &str, DbcParseError> {
-    recognize(tuple((
-        opt(tag("-")),
-        uint,
-        alt((recognize(pair(frac, opt(exp))), exp)),
-    )))(input)
-}
-
-fn float_value(input: &str) -> IResult<&str, f64, DbcParseError> {
-    let (remain, raw_float) = float_body(input)?;
-    match raw_float.parse::<f64>() {
-        Ok(f) => Ok((remain, f)),
-        Err(_) => Err(nom::Err::Failure(DbcParseError::BadFloat)),
-    }
-}
-
-fn number_value(input: &str) -> IResult<&str, f64, DbcParseError> {
-    alt((
-        map(float_value, |f| f.into()),
-        map(integer_value, |i| i as f64),
-    ))(input)
-}
-
 fn dbc_object_name(input: &str) -> IResult<&str, &str, DbcParseError> {
     take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
 }
@@ -454,22 +265,6 @@ fn dbc_signal_name(input: &str) -> IResult<&str, &str, DbcParseError> {
 
 fn dbc_message_name(input: &str) -> IResult<&str, &str, DbcParseError> {
     dbc_object_name(input)
-}
-
-pub fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
-    let res = map(preceded(spacey(tag("VERSION")), string_literal), |s| {
-        DbcVersion(s)
-    })(input);
-    match res {
-        Ok((remain, version)) => {
-            log::info!("parse version: {}", version.0);
-            Ok((remain, version))
-        }
-        Err(e) => {
-            log::error!("parse version failed, e = {:?}", e);
-            Err(nom::Err::Error(DbcParseError::BadVersion))
-        }
-    }
 }
 
 fn dbc_one_line_name(input: &str) -> IResult<&str, String, DbcParseError> {
@@ -495,7 +290,7 @@ fn dbc_names(input: &str) -> IResult<&str, DbcNames, DbcParseError> {
             Ok((remain, names))
         }
         Err(e) => {
-            log::error!("parse names failed, e = {:?}", e);
+            log::trace!("parse names failed, e = {:?}", e);
             Err(nom::Err::Error(DbcParseError::BadNames))
         }
     }
@@ -520,7 +315,7 @@ fn dbc_bus_configuration(input: &str) -> IResult<&str, Option<DbcBusConfiguratio
             Ok((remain, bus_config))
         }
         Err(e) => {
-            log::error!("parse bus config failed, e = {:?}", e);
+            log::trace!("parse bus config failed, e = {:?}", e);
             Err(nom::Err::Error(DbcParseError::BadBusConfig))
         }
     }
@@ -542,7 +337,7 @@ fn dbc_can_nodes(input: &str) -> IResult<&str, DbcCanNodes, DbcParseError> {
             Ok((remain, can_nodes))
         }
         Err(e) => {
-            log::error!("parse can nodes failed, e = {:?}", e);
+            log::trace!("parse can nodes failed, e = {:?}", e);
             Err(nom::Err::Error(DbcParseError::BadCanNodes))
         }
     }
@@ -653,7 +448,7 @@ fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
             Ok((remain, signal))
         }
         Err(e) => {
-            log::error!("parse signal failed, e = {:?}", e);
+            log::trace!("parse signal failed, e = {:?}", e);
             Err(nom::Err::Error(DbcParseError::BadSignal))
         }
     }
@@ -683,7 +478,7 @@ fn dbc_message_header(input: &str) -> IResult<&str, DbcMessageHeader, DbcParseEr
             Ok((remain, header))
         }
         Err(e) => {
-            log::error!("parse message header failed, e = {:?}", e);
+            log::trace!("parse message header failed, e = {:?}", e);
             Err(nom::Err::Error(DbcParseError::BadMessageHeader))
         }
     }
