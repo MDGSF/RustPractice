@@ -216,14 +216,31 @@ fn dbc_names(input: &str) -> IResult<&str, DbcNames, DbcParseError> {
 fn dbc_bus_configuration(input: &str) -> IResult<&str, Option<DbcBusConfiguration>, DbcParseError> {
     map(
         tuple((
-            multispacey(tag("BS_:")),
+            multispacey(tag("BS_")),
+            spacey(tag(":")),
             opt(float_value),
             many0(line_ending),
         )),
-        |(_, speed, _)| match speed {
+        |(_, _, speed, _)| match speed {
             None => None,
             Some(speed) => Some(DbcBusConfiguration(speed)),
         },
+    )(input)
+}
+
+fn dbc_one_can_node_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
+}
+
+fn dbc_can_nodes(input: &str) -> IResult<&str, DbcCanNodes, DbcParseError> {
+    map(
+        tuple((
+            multispacey(tag("BU_")),
+            spacey(tag(":")),
+            many0(spacey(dbc_one_can_node_name)),
+            many0(line_ending),
+        )),
+        |(_, _, names, _)| DbcCanNodes(names.into_iter().map(String::from).collect()),
     )(input)
 }
 
@@ -233,12 +250,13 @@ fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
             multispacey(dbc_version),
             multispacey(dbc_names),
             multispacey(dbc_bus_configuration),
+            multispacey(dbc_can_nodes),
         ))),
-        |(version, names, bus_configuration)| OneDbc {
+        |(version, names, bus_configuration, can_nodes)| OneDbc {
             version,
             names,
             bus_configuration,
-            can_nodes: DbcCanNodes(vec![]),
+            can_nodes,
         },
     )(input)
 }
@@ -321,6 +339,31 @@ fn test_dbc_bus_configuration() {
 }
 
 #[test]
+fn test_dbc_can_nodes() {
+    assert_eq!(
+        dbc_can_nodes(
+            r#"BU_: ABS DRS_MM5_10
+
+"#
+        ),
+        Ok(("", DbcCanNodes(vec!["ABS".into(), "DRS_MM5_10".into()]))),
+    );
+
+    assert_eq!(
+        dbc_can_nodes(r#"BU_:Matrix"#),
+        Ok(("", DbcCanNodes(vec!["Matrix".into()]))),
+    );
+
+    assert_eq!(
+        dbc_can_nodes(r#"BU_: Node2 Node1 Node0"#),
+        Ok((
+            "",
+            DbcCanNodes(vec!["Node2".into(), "Node1".into(), "Node0".into()])
+        )),
+    );
+}
+
+#[test]
 fn test_dbc_01() {
     assert_eq!(
         parse_dbc(
@@ -332,14 +375,14 @@ NS_:
     CM_
 
 BS_:
-
+BU_: ABS DRS_MM5_10
 "#
         ),
         Ok(OneDbc {
             version: DbcVersion("1.0".into()),
             names: DbcNames(vec!["BS_".into(), "CM_".into()]),
             bus_configuration: None,
-            can_nodes: DbcCanNodes(vec![]),
+            can_nodes: DbcCanNodes(vec!["ABS".into(), "DRS_MM5_10".into()]),
         }),
     );
 }
