@@ -1,5 +1,5 @@
 use anyhow::Result;
-use dbc01::dbc_parser::dbc_value;
+use dbc01::dbc_parser::*;
 
 fn main() -> Result<()> {
     let data = std::fs::read_to_string("dbc/mytest/a.dbc")?;

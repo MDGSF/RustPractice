@@ -12,6 +12,7 @@ use nom::combinator::all_consuming;
 use nom::combinator::map;
 use nom::combinator::opt;
 use nom::combinator::recognize;
+use nom::error::ContextError;
 use nom::error::{ErrorKind, ParseError};
 use nom::multi::many0;
 use nom::sequence::delimited;
@@ -24,6 +25,10 @@ use std::fmt;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum DbcParseError {
+    #[error("bad version")]
+    BadVersion,
+    #[error("bad names")]
+    BadNames,
     #[error("bad integer")]
     BadInt,
     #[error("bad float")]
@@ -32,15 +37,43 @@ pub enum DbcParseError {
     BadEscape,
     #[error("unknown parser error")]
     Unparseable,
+    #[error("debug message")]
+    DebugMsg(String),
 }
 
-impl<I> ParseError<I> for DbcParseError {
-    fn from_error_kind(_input: I, _kind: ErrorKind) -> Self {
-        DbcParseError::Unparseable
+impl ParseError<&str> for DbcParseError {
+    // on one line, we show the error code and the input that caused it
+    fn from_error_kind(input: &str, kind: ErrorKind) -> Self {
+        let message = format!("{:?}:\t{:?}\n", kind, input);
+        // println!("{}", message);
+        DbcParseError::DebugMsg(message)
     }
 
-    fn append(_: I, _: ErrorKind, other: Self) -> Self {
-        other
+    // if combining multiple errors, we show them one after the other
+    fn append(input: &str, kind: ErrorKind, other: Self) -> Self {
+        let message = format!("{}{:?}:\t{:?}\n", other, kind, input);
+        // println!("{}", message);
+        DbcParseError::DebugMsg(message)
+    }
+
+    fn from_char(input: &str, c: char) -> Self {
+        let message = format!("'{}':\t{:?}\n", c, input);
+        // println!("{}", message);
+        DbcParseError::DebugMsg(message)
+    }
+
+    fn or(self, other: Self) -> Self {
+        let message = format!("{}\tOR\n{}\n", self, other);
+        // println!("{}", message);
+        DbcParseError::DebugMsg(message)
+    }
+}
+
+impl ContextError<&str> for DbcParseError {
+    fn add_context(input: &str, ctx: &'static str, other: Self) -> Self {
+        let message = format!("{}\"{}\":\t{:?}\n", other, ctx, input);
+        // println!("{}", message);
+        DbcParseError::DebugMsg(message)
     }
 }
 
@@ -184,7 +217,7 @@ pub struct DbcSignal {
 impl fmt::Display for DbcSignal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let multiplexer = match &self.multiplexer {
-            Some(m) => format!("[{m}] "),
+            Some(m) => format!("{m} "),
             None => "".to_string(),
         };
         let signed = match &self.signed {
@@ -201,7 +234,7 @@ impl fmt::Display for DbcSignal {
             None => "".to_string(),
         };
         let receiving_node = match &self.receiving_node {
-            Some(node) => format!("[{}]", node),
+            Some(node) => format!("{}", node),
             None => "".to_string(),
         };
 
@@ -409,10 +442,21 @@ fn dbc_message_name(input: &str) -> IResult<&str, &str, DbcParseError> {
     dbc_object_name(input)
 }
 
-fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
-    map(preceded(spacey(tag("VERSION")), string_literal), |s| {
+pub fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
+    let res = map(preceded(spacey(tag("VERSION")), string_literal), |s| {
         DbcVersion(s)
-    })(input)
+    })(input);
+    match res {
+        Ok((remain, version)) => {
+            // println!("parse version: {}, remain: {}", version.0, remain);
+            println!("parse version: {}", version.0);
+            Ok((remain, version))
+        }
+        Err(e) => {
+            println!("parse version failed, e = {:?}", e);
+            Err(nom::Err::Failure(DbcParseError::BadVersion))
+        }
+    }
 }
 
 fn dbc_one_line_name(input: &str) -> IResult<&str, String, DbcParseError> {
@@ -423,14 +467,26 @@ fn dbc_one_line_name(input: &str) -> IResult<&str, String, DbcParseError> {
 }
 
 fn dbc_names(input: &str) -> IResult<&str, DbcNames, DbcParseError> {
-    map(
+    let res = map(
         tuple((
-            multispacey(tag("NS_:")),
+            multispacey(tag("NS_")),
+            multispacey(tag(":")),
             many0(dbc_one_line_name),
             many0(line_ending),
         )),
-        |(_, names, _)| DbcNames(names),
-    )(input)
+        |(_, _, names, _)| DbcNames(names),
+    )(input);
+    match res {
+        Ok((remain, names)) => {
+            // println!("parse names: {:?}, remain: {}", names.0, remain);
+            println!("parse names: {:?}", names.0);
+            Ok((remain, names))
+        }
+        Err(e) => {
+            println!("parse names failed, e = {:?}", e);
+            Err(nom::Err::Failure(DbcParseError::BadNames))
+        }
+    }
 }
 
 fn dbc_bus_configuration(input: &str) -> IResult<&str, Option<DbcBusConfiguration>, DbcParseError> {
@@ -645,7 +701,7 @@ fn test_dbc_one_line_name() {
 }
 
 #[test]
-fn test_dbc_names() {
+fn test_dbc_names_01() {
     assert_eq!(
         dbc_names(
             r#"NS_:
@@ -656,6 +712,33 @@ fn test_dbc_names() {
 "#
         ),
         Ok(("", DbcNames(vec!["BS_".into(), "CM_".into()]))),
+    );
+}
+
+#[test]
+fn test_dbc_names_02() {
+    assert_eq!(
+        dbc_names(
+            r#"
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+
+
+"#
+        ),
+        Ok((
+            "",
+            DbcNames(vec![
+                "NS_DESC_".into(),
+                "CM_".into(),
+                "BA_DEF_".into(),
+                "BA_".into()
+            ])
+        )),
     );
 }
 
