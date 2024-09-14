@@ -31,6 +31,10 @@ use nom::IResult;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum DbcParseError {
+    #[error("bad integer")]
+    BadInt,
+    #[error("bad float")]
+    BadFloat,
     #[error("bad escape sequence")]
     BadEscape,
     #[error("unknown parser error")]
@@ -39,6 +43,7 @@ pub enum DbcParseError {
 
 impl<I> ParseError<I> for DbcParseError {
     fn from_error_kind(_input: I, _kind: ErrorKind) -> Self {
+        println!("from_error_kind, kink: {:?}", _kind);
         DbcParseError::Unparseable
     }
 
@@ -72,11 +77,17 @@ pub struct DbcNames(Vec<String>);
 #[derive(PartialEq, Debug, Clone)]
 pub struct DbcBusConfiguration(f64);
 
+/// List of all CAN-Nodes, seperated by whitespaces.
+/// BU_: ABS DRS_MM5_10
+#[derive(PartialEq, Debug, Clone)]
+pub struct DbcCanNodes(Vec<String>);
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct OneDbc {
     pub version: DbcVersion,
     pub names: DbcNames,
-    pub bus_configuratin: Option<DbcBusConfiguration>,
+    pub bus_configuration: Option<DbcBusConfiguration>,
+    pub can_nodes: DbcCanNodes,
 }
 
 fn spacey<F, I, O, E>(f: F) -> impl FnMut(I) -> IResult<I, O, E>
@@ -139,19 +150,54 @@ fn string_literal(input: &str) -> IResult<&str, String, DbcParseError> {
     }
 }
 
+fn digit1to9(input: &str) -> IResult<&str, char, DbcParseError> {
+    one_of("123456789")(input)
+}
+fn uint(input: &str) -> IResult<&str, &str, DbcParseError> {
+    alt((tag("0"), recognize(pair(digit1to9, digit0))))(input)
+}
+
+fn integer_body(input: &str) -> IResult<&str, &str, DbcParseError> {
+    recognize(pair(opt(tag("-")), uint))(input)
+}
+
+fn frac(input: &str) -> IResult<&str, &str, DbcParseError> {
+    recognize(pair(tag("."), digit1))(input)
+}
+
+fn exp(input: &str) -> IResult<&str, &str, DbcParseError> {
+    recognize(tuple((tag("e"), opt(alt((tag("-"), tag("+")))), digit1)))(input)
+}
+
+fn float_body(input: &str) -> IResult<&str, &str, DbcParseError> {
+    recognize(tuple((
+        opt(tag("-")),
+        uint,
+        alt((recognize(pair(frac, opt(exp))), exp)),
+    )))(input)
+}
+
+fn float_value(input: &str) -> IResult<&str, f64, DbcParseError> {
+    let (remain, raw_float) = float_body(input)?;
+    match raw_float.parse::<f64>() {
+        Ok(f) => Ok((remain, f)),
+        Err(_) => Err(nom::Err::Failure(DbcParseError::BadFloat)),
+    }
+}
+
 fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
     map(preceded(spacey(tag("VERSION")), string_literal), |s| {
         DbcVersion(s)
     })(input)
 }
 
-fn parse_uppercase_underscore(input: &str) -> IResult<&str, &str, DbcParseError> {
+fn dbc_one_name(input: &str) -> IResult<&str, &str, DbcParseError> {
     take_while1(|c: char| c.is_ascii_uppercase() || c == '_')(input)
 }
 
-fn dbc_one_name(input: &str) -> IResult<&str, String, DbcParseError> {
+fn dbc_one_line_name(input: &str) -> IResult<&str, String, DbcParseError> {
     map(
-        tuple((space0, parse_uppercase_underscore, space0, line_ending)),
+        tuple((space0, dbc_one_name, space0, line_ending)),
         |(_, name, _, _)| name.to_owned(),
     )(input)
 }
@@ -160,20 +206,39 @@ fn dbc_names(input: &str) -> IResult<&str, DbcNames, DbcParseError> {
     map(
         tuple((
             multispacey(tag("NS_:")),
-            many0(dbc_one_name),
+            many0(dbc_one_line_name),
             many0(line_ending),
         )),
         |(_, names, _)| DbcNames(names),
     )(input)
 }
 
+fn dbc_bus_configuration(input: &str) -> IResult<&str, Option<DbcBusConfiguration>, DbcParseError> {
+    map(
+        tuple((
+            multispacey(tag("BS_:")),
+            opt(float_value),
+            many0(line_ending),
+        )),
+        |(_, speed, _)| match speed {
+            None => None,
+            Some(speed) => Some(DbcBusConfiguration(speed)),
+        },
+    )(input)
+}
+
 fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
     map(
-        multispacey(tuple((multispacey(dbc_version), multispacey(dbc_names)))),
-        |(version, names)| OneDbc {
+        multispacey(tuple((
+            multispacey(dbc_version),
+            multispacey(dbc_names),
+            multispacey(dbc_bus_configuration),
+        ))),
+        |(version, names, bus_configuration)| OneDbc {
             version,
             names,
-            bus_configuratin: None,
+            bus_configuration,
+            can_nodes: DbcCanNodes(vec![]),
         },
     )(input)
 }
@@ -201,9 +266,9 @@ fn test_dbc_version() {
 }
 
 #[test]
-fn test_dbc_one_name() {
+fn test_dbc_one_line_name() {
     assert_eq!(
-        dbc_one_name(
+        dbc_one_line_name(
             r#"  BS_
 "#
         ),
@@ -211,7 +276,7 @@ fn test_dbc_one_name() {
     );
 
     assert_eq!(
-        dbc_one_name(
+        dbc_one_line_name(
             r#"    CM_
 "#
         ),
@@ -235,6 +300,27 @@ fn test_dbc_names() {
 }
 
 #[test]
+fn test_dbc_bus_configuration() {
+    assert_eq!(
+        dbc_bus_configuration(
+            r#"BS_: 12.34
+
+"#
+        ),
+        Ok(("", Some(DbcBusConfiguration(12.34)))),
+    );
+
+    assert_eq!(
+        dbc_bus_configuration(
+            r#"BS_:
+
+"#
+        ),
+        Ok(("", None)),
+    );
+}
+
+#[test]
 fn test_dbc_01() {
     assert_eq!(
         parse_dbc(
@@ -245,13 +331,15 @@ NS_:
     BS_
     CM_
 
+BS_:
 
 "#
         ),
         Ok(OneDbc {
             version: DbcVersion("1.0".into()),
             names: DbcNames(vec!["BS_".into(), "CM_".into()]),
-            bus_configuratin: None,
+            bus_configuration: None,
+            can_nodes: DbcCanNodes(vec![]),
         }),
     );
 }
