@@ -1,5 +1,7 @@
+use super::dbc_bus_configuration::DbcBusConfiguration;
 use super::dbc_common_parsers::*;
 use super::dbc_error::DbcParseError;
+use super::dbc_names::DbcNames;
 use super::dbc_version::dbc_version;
 use super::dbc_version::DbcVersion;
 use nom::branch::alt;
@@ -17,45 +19,6 @@ use nom::sequence::separated_pair;
 use nom::sequence::tuple;
 use nom::IResult;
 use std::fmt;
-
-/// Names used throughout the DBC file.
-///
-/// Format:
-///
-/// ```text
-/// NS_:
-///     BS_
-///     CM_
-///     ...
-/// ```
-/// */
-#[derive(PartialEq, Debug, Clone)]
-pub struct DbcNames(Vec<String>);
-
-impl fmt::Display for DbcNames {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "NS_:")?;
-        for name in &self.0 {
-            writeln!(f, "\t{name}")?;
-        }
-        Ok(())
-    }
-}
-
-/// Bus configuration.
-/// Format:: `BS_: <Speed>`
-/// Speed in kBit/s
-#[derive(PartialEq, Debug, Clone)]
-pub struct DbcBusConfiguration(Option<f64>);
-
-impl fmt::Display for DbcBusConfiguration {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.0 {
-            Some(speed) => write!(f, "BS_: {}", speed),
-            None => write!(f, "BS_:"),
-        }
-    }
-}
 
 /// List of all CAN-Nodes, seperated by whitespaces.
 /// BU_: ABS DRS_MM5_10
