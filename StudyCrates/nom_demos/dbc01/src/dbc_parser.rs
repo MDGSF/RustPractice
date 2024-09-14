@@ -15,6 +15,7 @@ use nom::combinator::recognize;
 use nom::error::ContextError;
 use nom::error::{ErrorKind, ParseError};
 use nom::multi::many0;
+use nom::multi::separated_list0;
 use nom::sequence::delimited;
 use nom::sequence::pair;
 use nom::sequence::preceded;
@@ -116,11 +117,14 @@ impl fmt::Display for DbcNames {
 /// Format:: `BS_: <Speed>`
 /// Speed in kBit/s
 #[derive(PartialEq, Debug, Clone)]
-pub struct DbcBusConfiguration(f64);
+pub struct DbcBusConfiguration(Option<f64>);
 
 impl fmt::Display for DbcBusConfiguration {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "BS_: {}", self.0)
+        match self.0 {
+            Some(speed) => write!(f, "BS_: {}", speed),
+            None => write!(f, "BS_:"),
+        }
     }
 }
 
@@ -161,6 +165,7 @@ impl fmt::Display for DbcSignalMultiplexer {
     }
 }
 
+/// Endianness: 1 = little-endian, Intel; 0 = big-endian, Motorola
 #[derive(PartialEq, Debug, Clone)]
 pub enum DbcSignalEndianness {
     LittleEndian,
@@ -176,6 +181,7 @@ impl fmt::Display for DbcSignalEndianness {
     }
 }
 
+/// Signed: + = unsigned; - = signed
 #[derive(PartialEq, Debug, Clone)]
 pub enum DbcSignalSigned {
     Signed,
@@ -211,7 +217,7 @@ pub struct DbcSignal {
     pub min: Option<f64>,
     pub max: Option<f64>,
     pub unit: Option<String>,
-    pub receiving_node: Option<String>,
+    pub receiving_nodes: Option<Vec<String>>,
 }
 
 impl fmt::Display for DbcSignal {
@@ -233,9 +239,9 @@ impl fmt::Display for DbcSignal {
             Some(u) => format!("\"{u}\""),
             None => "".to_string(),
         };
-        let receiving_node = match &self.receiving_node {
-            Some(node) => format!("{}", node),
-            None => "".to_string(),
+        let mut receiving_nodes_str = String::new();
+        if let Some(nodes) = &self.receiving_nodes {
+            receiving_nodes_str = nodes.join(",");
         };
 
         write!(
@@ -251,7 +257,7 @@ impl fmt::Display for DbcSignal {
             self.offset,
             min_max,
             unit,
-            receiving_node
+            receiving_nodes_str
         )
     }
 }
@@ -303,12 +309,12 @@ pub struct OneDbc {
 
 impl fmt::Display for OneDbc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{}", self.version)?;
+        writeln!(f, "{}\n", self.version)?;
         writeln!(f, "{}", self.names)?;
         if let Some(bc) = &self.bus_configuration {
-            writeln!(f, "{}", bc)?;
+            writeln!(f, "{}\n", bc)?;
         }
-        writeln!(f, "{}", self.can_nodes)?;
+        writeln!(f, "{}\n", self.can_nodes)?;
         for message in &self.messages {
             writeln!(f, "{}", message)?;
         }
@@ -498,8 +504,8 @@ fn dbc_bus_configuration(input: &str) -> IResult<&str, Option<DbcBusConfiguratio
             many0(line_ending),
         )),
         |(_, _, speed, _)| match speed {
-            None => None,
-            Some(speed) => Some(DbcBusConfiguration(speed)),
+            None => Some(DbcBusConfiguration(None)),
+            Some(speed) => Some(DbcBusConfiguration(Some(speed))),
         },
     )(input)
 }
@@ -559,6 +565,11 @@ fn dbc_signal_min_max(input: &str) -> IResult<&str, (f64, f64), DbcParseError> {
     Ok((remaining, (min_value, max_value)))
 }
 
+fn dbc_signal_receiving_nodes(input: &str) -> IResult<&str, Vec<String>, DbcParseError> {
+    let (remaining, nodes) = spacey(separated_list0(tag(","), spacey(dbc_node_name)))(input)?;
+    Ok((remaining, nodes.into_iter().map(String::from).collect()))
+}
+
 fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
     map(
         tuple((
@@ -575,7 +586,7 @@ fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
             spacey(dbc_signal_factor_offset),
             spacey(opt(dbc_signal_min_max)),
             spacey(opt(string_literal)), // "[Unit]"
-            spacey(opt(dbc_node_name)),
+            spacey(opt(dbc_signal_receiving_nodes)),
             many0(line_ending),
         )),
         |(
@@ -592,7 +603,7 @@ fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
             factor_offset,
             min_max,
             unit,
-            receiving_node,
+            receiving_nodes,
             _,
         )| DbcSignal {
             name: String::from(name),
@@ -606,7 +617,7 @@ fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
             min: min_max.map(|(min, _)| min),
             max: min_max.map(|(_, max)| max),
             unit,
-            receiving_node: receiving_node.map(String::from),
+            receiving_nodes,
         },
     )(input)
 }
@@ -750,7 +761,7 @@ fn test_dbc_bus_configuration() {
 
 "#
         ),
-        Ok(("", Some(DbcBusConfiguration(12.34)))),
+        Ok(("", Some(DbcBusConfiguration(Some(12.34))))),
     );
 
     assert_eq!(
@@ -759,7 +770,7 @@ fn test_dbc_bus_configuration() {
 
 "#
         ),
-        Ok(("", None)),
+        Ok(("", Some(DbcBusConfiguration(None)))),
     );
 }
 
@@ -834,7 +845,7 @@ fn test_dbc_signal_01() {
                 min: Some(-4.1768),
                 max: Some(4.1765),
                 unit: Some("g".into()),
-                receiving_node: Some("ABS".into()),
+                receiving_nodes: Some(vec!["ABS".into()]),
             }
         )),
     );
@@ -862,7 +873,7 @@ fn test_dbc_signal_02() {
                 min: Some(0.0),
                 max: Some(0.0),
                 unit: Some("".into()),
-                receiving_node: Some("Vector__XXX".into()),
+                receiving_nodes: Some(vec!["Vector__XXX".into()]),
             }
         )),
     );
@@ -890,7 +901,35 @@ fn test_dbc_signal_03() {
                 min: Some(0.0),
                 max: Some(0.0),
                 unit: Some("".into()),
-                receiving_node: Some("Vector__XXX".into()),
+                receiving_nodes: Some(vec!["Vector__XXX".into()]),
+            }
+        )),
+    );
+}
+
+#[test]
+fn test_dbc_signal_04() {
+    assert_eq!(
+        dbc_signal(
+            r#"  SG_ Signal1 : 32|32@1+ (100,0) [0|100] "%"  Node1,Node2
+
+"#
+        ),
+        Ok((
+            "",
+            DbcSignal {
+                name: "Signal1".into(),
+                multiplexer: None,
+                start_bit: 32,
+                length: 32,
+                endianness: DbcSignalEndianness::LittleEndian,
+                signed: DbcSignalSigned::Unsigned,
+                factor: 100.0,
+                offset: 0.0,
+                min: Some(0.0),
+                max: Some(100.0),
+                unit: Some("%".into()),
+                receiving_nodes: Some(vec!["Node1".into(), "Node2".into()]),
             }
         )),
     );
@@ -937,7 +976,7 @@ BO_ 112 MM5_10_TX1: 8 DRS_MM5_10
         Ok(OneDbc {
             version: DbcVersion("1.0".into()),
             names: DbcNames(vec!["BS_".into(), "CM_".into()]),
-            bus_configuration: None,
+            bus_configuration: Some(DbcBusConfiguration(None)),
             can_nodes: DbcCanNodes(vec!["ABS".into(), "DRS_MM5_10".into()]),
             messages: vec![
                 DbcMessage {
@@ -969,7 +1008,7 @@ BO_ 112 MM5_10_TX1: 8 DRS_MM5_10
                             min: Some(-163.84),
                             max: Some(163.83),
                             unit: Some("°/s".into()),
-                            receiving_node: Some("ABS".into()),
+                            receiving_nodes: Some(vec!["ABS".into()]),
                         },
                         DbcSignal {
                             name: "AY1".into(),
@@ -983,7 +1022,7 @@ BO_ 112 MM5_10_TX1: 8 DRS_MM5_10
                             min: Some(-4.1768),
                             max: Some(4.1765),
                             unit: Some("g".into()),
-                            receiving_node: Some("ABS".into()),
+                            receiving_nodes: Some(vec!["ABS".into()]),
                         }
                     ],
                 },
