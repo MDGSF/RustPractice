@@ -1,33 +1,26 @@
 use escape8259::unescape;
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::bytes::complete::take_until;
-use nom::bytes::complete::take_while;
 use nom::bytes::complete::take_while1;
 use nom::character::complete::digit0;
 use nom::character::complete::digit1;
 use nom::character::complete::line_ending;
 use nom::character::complete::multispace0;
 use nom::character::complete::one_of;
-use nom::character::complete::satisfy;
 use nom::character::complete::space0;
-use nom::character::is_alphabetic;
 use nom::combinator::all_consuming;
 use nom::combinator::map;
-use nom::combinator::map_res;
 use nom::combinator::opt;
 use nom::combinator::recognize;
-use nom::combinator::value;
 use nom::error::{ErrorKind, ParseError};
 use nom::multi::many0;
-use nom::multi::separated_list0;
 use nom::sequence::delimited;
 use nom::sequence::pair;
 use nom::sequence::preceded;
 use nom::sequence::separated_pair;
-use nom::sequence::terminated;
 use nom::sequence::tuple;
 use nom::IResult;
+use std::fmt;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum DbcParseError {
@@ -56,6 +49,12 @@ impl<I> ParseError<I> for DbcParseError {
 #[derive(PartialEq, Debug, Clone)]
 pub struct DbcVersion(String);
 
+impl fmt::Display for DbcVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "VERSION \"{}\"", self.0)
+    }
+}
+
 /// Names used throughout the DBC file.
 ///
 /// Format:
@@ -70,16 +69,42 @@ pub struct DbcVersion(String);
 #[derive(PartialEq, Debug, Clone)]
 pub struct DbcNames(Vec<String>);
 
+impl fmt::Display for DbcNames {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "NS_:")?;
+        for name in &self.0 {
+            writeln!(f, "\t{name}")?;
+        }
+        Ok(())
+    }
+}
+
 /// Bus configuration.
 /// Format:: `BS_: <Speed>`
 /// Speed in kBit/s
 #[derive(PartialEq, Debug, Clone)]
 pub struct DbcBusConfiguration(f64);
 
+impl fmt::Display for DbcBusConfiguration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BS_: {}", self.0)
+    }
+}
+
 /// List of all CAN-Nodes, seperated by whitespaces.
 /// BU_: ABS DRS_MM5_10
 #[derive(PartialEq, Debug, Clone)]
 pub struct DbcCanNodes(Vec<String>);
+
+impl fmt::Display for DbcCanNodes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "BU_:",)?;
+        for node in &self.0 {
+            write!(f, " {node}")?;
+        }
+        Ok(())
+    }
+}
 
 /*
  SG_ S7 m1 : 40|24@1- (1,0) [0|0] "" Vector__XXX
@@ -94,16 +119,43 @@ pub enum DbcSignalMultiplexer {
     MultiplexerIdentifier(i64),
 }
 
+impl fmt::Display for DbcSignalMultiplexer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbcSignalMultiplexer::M => write!(f, "M"),
+            DbcSignalMultiplexer::MultiplexerIdentifier(id) => write!(f, "m{id}"),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum DbcSignalEndianness {
     LittleEndian,
     BigEndian,
 }
 
+impl fmt::Display for DbcSignalEndianness {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbcSignalEndianness::LittleEndian => write!(f, "1"),
+            DbcSignalEndianness::BigEndian => write!(f, "0"),
+        }
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub enum DbcSignalSigned {
     Signed,
     Unsigned,
+}
+
+impl fmt::Display for DbcSignalSigned {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            DbcSignalSigned::Signed => write!(f, "-"),
+            DbcSignalSigned::Unsigned => write!(f, "+"),
+        }
+    }
 }
 
 /// Signal definition.
@@ -129,6 +181,48 @@ pub struct DbcSignal {
     pub receiving_node: Option<String>,
 }
 
+impl fmt::Display for DbcSignal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let multiplexer = match &self.multiplexer {
+            Some(m) => format!("[{m}] "),
+            None => "".to_string(),
+        };
+        let signed = match &self.signed {
+            DbcSignalSigned::Signed => "-",
+            DbcSignalSigned::Unsigned => "+",
+        };
+        let endianness = &self.endianness.to_string();
+        let min_max = match (&self.min, &self.max) {
+            (Some(min), Some(max)) => format!("[{min}|{max}]"),
+            _ => "".to_string(),
+        };
+        let unit = match &self.unit {
+            Some(u) => format!("\"{u}\""),
+            None => "".to_string(),
+        };
+        let receiving_node = match &self.receiving_node {
+            Some(node) => format!("[{}]", node),
+            None => "".to_string(),
+        };
+
+        write!(
+            f,
+            "SG_ {} {}: {}|{}@{}{} ({},{}) {} {} {}",
+            self.name,
+            multiplexer,
+            self.start_bit,
+            self.length,
+            endianness,
+            signed,
+            self.factor,
+            self.offset,
+            min_max,
+            unit,
+            receiving_node
+        )
+    }
+}
+
 /// Message definition.
 /// Format: `BO_ <CAN-ID> <MessageName>: <MessageLength> <SendingNode>`
 /// MessageLength in bytes.
@@ -145,6 +239,26 @@ pub struct DbcMessage {
     pub signals: Vec<DbcSignal>,
 }
 
+impl fmt::Display for DbcMessageHeader {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "BO_ {} {}: {} {}",
+            self.can_id, self.name, self.length, self.sending_node
+        )
+    }
+}
+
+impl fmt::Display for DbcMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{}", self.header)?;
+        for signal in &self.signals {
+            writeln!(f, "\t{}", signal)?;
+        }
+        Ok(())
+    }
+}
+
 #[derive(PartialEq, Debug, Clone)]
 pub struct OneDbc {
     pub version: DbcVersion,
@@ -152,6 +266,21 @@ pub struct OneDbc {
     pub bus_configuration: Option<DbcBusConfiguration>,
     pub can_nodes: DbcCanNodes,
     pub messages: Vec<DbcMessage>,
+}
+
+impl fmt::Display for OneDbc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{}", self.version)?;
+        writeln!(f, "{}", self.names)?;
+        if let Some(bc) = &self.bus_configuration {
+            writeln!(f, "{}", bc)?;
+        }
+        writeln!(f, "{}", self.can_nodes)?;
+        for message in &self.messages {
+            writeln!(f, "{}", message)?;
+        }
+        Ok(())
+    }
 }
 
 fn spacey<F, I, O, E>(f: F) -> impl FnMut(I) -> IResult<I, O, E>
@@ -452,7 +581,7 @@ fn dbc_message(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {
     )(input)
 }
 
-fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
+pub fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
     map(
         multispacey(tuple((
             multispacey(dbc_version),
@@ -472,10 +601,13 @@ fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
 }
 
 pub fn parse_dbc(input: &str) -> Result<OneDbc, DbcParseError> {
-    let (_, result) = all_consuming(dbc_value)(input).map_err(|nom_err| match nom_err {
-        nom::Err::Incomplete(_) => unreachable!(),
-        nom::Err::Error(e) => e,
-        nom::Err::Failure(e) => e,
+    let (_remain, result) = all_consuming(dbc_value)(input).map_err(|nom_err| {
+        println!("nom_err: {}", nom_err);
+        match nom_err {
+            nom::Err::Incomplete(_) => unreachable!(),
+            nom::Err::Error(e) => e,
+            nom::Err::Failure(e) => e,
+        }
     })?;
     Ok(result)
 }
