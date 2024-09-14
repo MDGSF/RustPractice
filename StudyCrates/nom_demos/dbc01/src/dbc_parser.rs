@@ -133,11 +133,15 @@ pub struct DbcSignal {
 /// Format: `BO_ <CAN-ID> <MessageName>: <MessageLength> <SendingNode>`
 /// MessageLength in bytes.
 #[derive(PartialEq, Debug, Clone)]
-pub struct DbcMessage {
+pub struct DbcMessageHeader {
     pub can_id: i64,
     pub name: String,
     pub length: i64,
     pub sending_node: String,
+}
+#[derive(PartialEq, Debug, Clone)]
+pub struct DbcMessage {
+    pub header: DbcMessageHeader,
     pub signals: Vec<DbcSignal>,
 }
 
@@ -260,19 +264,31 @@ fn number_value(input: &str) -> IResult<&str, f64, DbcParseError> {
     ))(input)
 }
 
+fn dbc_object_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
+}
+
+fn dbc_node_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    dbc_object_name(input)
+}
+
+fn dbc_signal_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    dbc_object_name(input)
+}
+
+fn dbc_message_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    dbc_object_name(input)
+}
+
 fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
     map(preceded(spacey(tag("VERSION")), string_literal), |s| {
         DbcVersion(s)
     })(input)
 }
 
-fn dbc_one_name(input: &str) -> IResult<&str, &str, DbcParseError> {
-    take_while1(|c: char| c.is_ascii_uppercase() || c == '_')(input)
-}
-
 fn dbc_one_line_name(input: &str) -> IResult<&str, String, DbcParseError> {
     map(
-        tuple((space0, dbc_one_name, space0, line_ending)),
+        tuple((space0, dbc_object_name, space0, line_ending)),
         |(_, name, _, _)| name.to_owned(),
     )(input)
 }
@@ -303,24 +319,16 @@ fn dbc_bus_configuration(input: &str) -> IResult<&str, Option<DbcBusConfiguratio
     )(input)
 }
 
-fn dbc_one_can_node_name(input: &str) -> IResult<&str, &str, DbcParseError> {
-    take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
-}
-
 fn dbc_can_nodes(input: &str) -> IResult<&str, DbcCanNodes, DbcParseError> {
     map(
         tuple((
             multispacey(tag("BU_")),
             spacey(tag(":")),
-            many0(spacey(dbc_one_can_node_name)),
+            many0(spacey(dbc_node_name)),
             many0(line_ending),
         )),
         |(_, _, names, _)| DbcCanNodes(names.into_iter().map(String::from).collect()),
     )(input)
-}
-
-fn dbc_signal_name(input: &str) -> IResult<&str, &str, DbcParseError> {
-    take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
 }
 
 fn dbc_signal_multiplexer(input: &str) -> IResult<&str, DbcSignalMultiplexer, DbcParseError> {
@@ -382,7 +390,7 @@ fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
             spacey(dbc_signal_factor_offset),
             spacey(opt(dbc_signal_min_max)),
             spacey(opt(string_literal)), // "[Unit]"
-            spacey(opt(dbc_one_can_node_name)),
+            spacey(opt(dbc_node_name)),
             many0(line_ending),
         )),
         |(
@@ -418,9 +426,31 @@ fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
     )(input)
 }
 
-// fn dbc_message_header(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {}
+fn dbc_message_header(input: &str) -> IResult<&str, DbcMessageHeader, DbcParseError> {
+    map(
+        tuple((
+            multispacey(tag("BO_")),
+            spacey(integer_value), // can id
+            spacey(dbc_message_name),
+            spacey(tag(":")),
+            spacey(integer_value), // length
+            spacey(dbc_node_name),
+        )),
+        |(_, can_id, message_name, _, length, sending_node_name)| DbcMessageHeader {
+            can_id,
+            name: String::from(message_name),
+            length,
+            sending_node: String::from(sending_node_name),
+        },
+    )(input)
+}
 
-// fn dbc_message(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {}
+fn dbc_message(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {
+    map(
+        tuple((dbc_message_header, many0(dbc_signal), many0(line_ending))),
+        |(header, signals, _)| DbcMessage { header, signals },
+    )(input)
+}
 
 fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
     map(
@@ -429,13 +459,14 @@ fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
             multispacey(dbc_names),
             multispacey(dbc_bus_configuration),
             multispacey(dbc_can_nodes),
+            multispacey(many0(dbc_message)),
         ))),
-        |(version, names, bus_configuration, can_nodes)| OneDbc {
+        |(version, names, bus_configuration, can_nodes, messages)| OneDbc {
             version,
             names,
             bus_configuration,
             can_nodes,
-            messages: vec![],
+            messages,
         },
     )(input)
 }
@@ -651,6 +682,22 @@ fn test_dbc_signal_03() {
 }
 
 #[test]
+fn test_dbc_message_header() {
+    assert_eq!(
+        dbc_message_header(r#"BO_ 2348941054 Normal: 8 Vector__XXX"#),
+        Ok((
+            "",
+            DbcMessageHeader {
+                can_id: 2348941054,
+                name: "Normal".into(),
+                length: 8,
+                sending_node: "Vector__XXX".into(),
+            }
+        )),
+    );
+}
+
+#[test]
 fn test_dbc_01() {
     assert_eq!(
         parse_dbc(
@@ -677,7 +724,55 @@ BO_ 112 MM5_10_TX1: 8 DRS_MM5_10
             names: DbcNames(vec!["BS_".into(), "CM_".into()]),
             bus_configuration: None,
             can_nodes: DbcCanNodes(vec!["ABS".into(), "DRS_MM5_10".into()]),
-            messages: vec![],
+            messages: vec![
+                DbcMessage {
+                    header: DbcMessageHeader {
+                        can_id: 117,
+                        name: "DRS_RX_ID0".into(),
+                        length: 8,
+                        sending_node: "ABS".into(),
+                    },
+                    signals: vec![],
+                },
+                DbcMessage {
+                    header: DbcMessageHeader {
+                        can_id: 112,
+                        name: "MM5_10_TX1".into(),
+                        length: 8,
+                        sending_node: "DRS_MM5_10".into(),
+                    },
+                    signals: vec![
+                        DbcSignal {
+                            name: "Yaw_Rate".into(),
+                            multiplexer: None,
+                            start_bit: 0,
+                            length: 16,
+                            endianness: DbcSignalEndianness::LittleEndian,
+                            signed: DbcSignalSigned::Unsigned,
+                            factor: 0.005,
+                            offset: -163.84,
+                            min: Some(-163.84),
+                            max: Some(163.83),
+                            unit: Some("°/s".into()),
+                            receiving_node: Some("ABS".into()),
+                        },
+                        DbcSignal {
+                            name: "AY1".into(),
+                            multiplexer: None,
+                            start_bit: 32,
+                            length: 16,
+                            endianness: DbcSignalEndianness::LittleEndian,
+                            signed: DbcSignalSigned::Unsigned,
+                            factor: 0.000127465,
+                            offset: -4.1768,
+                            min: Some(-4.1768),
+                            max: Some(4.1765),
+                            unit: Some("g".into()),
+                            receiving_node: Some("ABS".into()),
+                        }
+                    ],
+                },
+            ],
         }),
     );
 }
