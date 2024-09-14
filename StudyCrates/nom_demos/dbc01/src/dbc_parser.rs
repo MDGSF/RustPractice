@@ -43,7 +43,6 @@ pub enum DbcParseError {
 
 impl<I> ParseError<I> for DbcParseError {
     fn from_error_kind(_input: I, _kind: ErrorKind) -> Self {
-        println!("from_error_kind, kink: {:?}", _kind);
         DbcParseError::Unparseable
     }
 
@@ -148,6 +147,7 @@ pub struct OneDbc {
     pub names: DbcNames,
     pub bus_configuration: Option<DbcBusConfiguration>,
     pub can_nodes: DbcCanNodes,
+    pub messages: Vec<DbcMessage>,
 }
 
 fn spacey<F, I, O, E>(f: F) -> impl FnMut(I) -> IResult<I, O, E>
@@ -221,6 +221,14 @@ fn integer_body(input: &str) -> IResult<&str, &str, DbcParseError> {
     recognize(pair(opt(tag("-")), uint))(input)
 }
 
+fn integer_value(input: &str) -> IResult<&str, i64, DbcParseError> {
+    let (remain, raw_int) = integer_body(input)?;
+    match raw_int.parse::<i64>() {
+        Ok(i) => Ok((remain, i)),
+        Err(_) => Err(nom::Err::Failure(DbcParseError::BadInt)),
+    }
+}
+
 fn frac(input: &str) -> IResult<&str, &str, DbcParseError> {
     recognize(pair(tag("."), digit1))(input)
 }
@@ -243,6 +251,13 @@ fn float_value(input: &str) -> IResult<&str, f64, DbcParseError> {
         Ok(f) => Ok((remain, f)),
         Err(_) => Err(nom::Err::Failure(DbcParseError::BadFloat)),
     }
+}
+
+fn number_value(input: &str) -> IResult<&str, f64, DbcParseError> {
+    alt((
+        map(float_value, |f| f.into()),
+        map(integer_value, |i| i as f64),
+    ))(input)
 }
 
 fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
@@ -304,6 +319,109 @@ fn dbc_can_nodes(input: &str) -> IResult<&str, DbcCanNodes, DbcParseError> {
     )(input)
 }
 
+fn dbc_signal_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
+}
+
+fn dbc_signal_multiplexer(input: &str) -> IResult<&str, DbcSignalMultiplexer, DbcParseError> {
+    alt((
+        map(tag("M"), |_| DbcSignalMultiplexer::M),
+        map(tuple((tag("m"), integer_value)), |(_, num)| {
+            DbcSignalMultiplexer::MultiplexerIdentifier(num)
+        }),
+    ))(input)
+}
+
+fn dbc_signal_endianness(input: &str) -> IResult<&str, DbcSignalEndianness, DbcParseError> {
+    alt((
+        map(tag("1"), |_| DbcSignalEndianness::LittleEndian),
+        map(tag("0"), |_| DbcSignalEndianness::BigEndian),
+    ))(input)
+}
+
+fn dbc_signal_signed(input: &str) -> IResult<&str, DbcSignalSigned, DbcParseError> {
+    alt((
+        map(tag("+"), |_| DbcSignalSigned::Unsigned),
+        map(tag("-"), |_| DbcSignalSigned::Signed),
+    ))(input)
+}
+
+fn dbc_signal_factor_offset(input: &str) -> IResult<&str, (f64, f64), DbcParseError> {
+    let (remaining, (factor, offset)) = delimited(
+        spacey(tag("(")),
+        separated_pair(number_value, spacey(tag(",")), number_value),
+        spacey(tag(")")),
+    )(input)?;
+
+    Ok((remaining, (factor, offset)))
+}
+
+fn dbc_signal_min_max(input: &str) -> IResult<&str, (f64, f64), DbcParseError> {
+    let (remaining, (min_value, max_value)) = delimited(
+        spacey(tag("[")),
+        separated_pair(number_value, spacey(tag("|")), number_value),
+        spacey(tag("]")),
+    )(input)?;
+
+    Ok((remaining, (min_value, max_value)))
+}
+
+fn dbc_signal(input: &str) -> IResult<&str, DbcSignal, DbcParseError> {
+    map(
+        tuple((
+            multispacey(tag("SG_")),
+            spacey(dbc_signal_name),
+            spacey(opt(dbc_signal_multiplexer)),
+            spacey(tag(":")),
+            spacey(integer_value), // start bit
+            tag("|"),
+            integer_value, // length
+            tag("@"),
+            dbc_signal_endianness,
+            spacey(dbc_signal_signed),
+            spacey(dbc_signal_factor_offset),
+            spacey(opt(dbc_signal_min_max)),
+            spacey(opt(string_literal)), // "[Unit]"
+            spacey(opt(dbc_one_can_node_name)),
+            many0(line_ending),
+        )),
+        |(
+            _,
+            name,
+            multiplexer,
+            _,
+            start_bit,
+            _,
+            length,
+            _,
+            endianness,
+            signed,
+            factor_offset,
+            min_max,
+            unit,
+            receiving_node,
+            _,
+        )| DbcSignal {
+            name: String::from(name),
+            multiplexer,
+            start_bit,
+            length,
+            endianness,
+            signed,
+            factor: factor_offset.0,
+            offset: factor_offset.1,
+            min: min_max.map(|(min, _)| min),
+            max: min_max.map(|(_, max)| max),
+            unit,
+            receiving_node: receiving_node.map(String::from),
+        },
+    )(input)
+}
+
+// fn dbc_message_header(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {}
+
+// fn dbc_message(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {}
+
 fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
     map(
         multispacey(tuple((
@@ -317,6 +435,7 @@ fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
             names,
             bus_configuration,
             can_nodes,
+            messages: vec![],
         },
     )(input)
 }
@@ -424,6 +543,114 @@ fn test_dbc_can_nodes() {
 }
 
 #[test]
+fn test_dbc_signal_multiplexer_01() {
+    assert_eq!(
+        dbc_signal_multiplexer(r#"M"#),
+        Ok(("", DbcSignalMultiplexer::M)),
+    );
+}
+
+#[test]
+fn test_dbc_signal_multiplexer_02() {
+    assert_eq!(
+        dbc_signal_multiplexer(r#"m0"#),
+        Ok(("", DbcSignalMultiplexer::MultiplexerIdentifier(0))),
+    );
+}
+
+#[test]
+fn test_dbc_signal_multiplexer_03() {
+    assert_eq!(
+        dbc_signal_multiplexer(r#"m123"#),
+        Ok(("", DbcSignalMultiplexer::MultiplexerIdentifier(123))),
+    );
+}
+
+#[test]
+fn test_dbc_signal_01() {
+    assert_eq!(
+        dbc_signal(
+            r#" SG_ AY1 : 32|16@1+ (0.000127465,-4.1768) [-4.1768|4.1765] "g"  ABS
+
+"#
+        ),
+        Ok((
+            "",
+            DbcSignal {
+                name: "AY1".into(),
+                multiplexer: None,
+                start_bit: 32,
+                length: 16,
+                endianness: DbcSignalEndianness::LittleEndian,
+                signed: DbcSignalSigned::Unsigned,
+                factor: 0.000127465,
+                offset: -4.1768,
+                min: Some(-4.1768),
+                max: Some(4.1765),
+                unit: Some("g".into()),
+                receiving_node: Some("ABS".into()),
+            }
+        )),
+    );
+}
+
+#[test]
+fn test_dbc_signal_02() {
+    assert_eq!(
+        dbc_signal(
+            r#" SG_ S2 m0 : 8|8@1- (1.0,0.0) [0.0|0.0] "" Vector__XXX
+
+"#
+        ),
+        Ok((
+            "",
+            DbcSignal {
+                name: "S2".into(),
+                multiplexer: Some(DbcSignalMultiplexer::MultiplexerIdentifier(0)),
+                start_bit: 8,
+                length: 8,
+                endianness: DbcSignalEndianness::LittleEndian,
+                signed: DbcSignalSigned::Signed,
+                factor: 1.0,
+                offset: 0.0,
+                min: Some(0.0),
+                max: Some(0.0),
+                unit: Some("".into()),
+                receiving_node: Some("Vector__XXX".into()),
+            }
+        )),
+    );
+}
+
+#[test]
+fn test_dbc_signal_03() {
+    assert_eq!(
+        dbc_signal(
+            r#" SG_ S2 m0 : 8|8@1- (1,0) [0|0] "" Vector__XXX
+
+"#
+        ),
+        Ok((
+            "",
+            DbcSignal {
+                name: "S2".into(),
+                multiplexer: Some(DbcSignalMultiplexer::MultiplexerIdentifier(0)),
+                start_bit: 8,
+                length: 8,
+                endianness: DbcSignalEndianness::LittleEndian,
+                signed: DbcSignalSigned::Signed,
+                factor: 1.0,
+                offset: 0.0,
+                min: Some(0.0),
+                max: Some(0.0),
+                unit: Some("".into()),
+                receiving_node: Some("Vector__XXX".into()),
+            }
+        )),
+    );
+}
+
+#[test]
 fn test_dbc_01() {
     assert_eq!(
         parse_dbc(
@@ -436,6 +663,13 @@ NS_:
 
 BS_:
 BU_: ABS DRS_MM5_10
+
+BO_ 117 DRS_RX_ID0: 8 ABS
+
+BO_ 112 MM5_10_TX1: 8 DRS_MM5_10
+ SG_ Yaw_Rate : 0|16@1+ (0.005,-163.84) [-163.84|163.83] "°/s"  ABS
+ SG_ AY1 : 32|16@1+ (0.000127465,-4.1768) [-4.1768|4.1765] "g"  ABS
+
 "#
         ),
         Ok(OneDbc {
@@ -443,6 +677,7 @@ BU_: ABS DRS_MM5_10
             names: DbcNames(vec!["BS_".into(), "CM_".into()]),
             bus_configuration: None,
             can_nodes: DbcCanNodes(vec!["ABS".into(), "DRS_MM5_10".into()]),
+            messages: vec![],
         }),
     );
 }
