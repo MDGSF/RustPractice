@@ -1,4 +1,13 @@
+use super::dbc_common_parsers::*;
+use super::dbc_error::DbcParseError;
+use super::dbc_signal::dbc_signal;
 use super::dbc_signal::DbcSignal;
+use nom::bytes::complete::tag;
+use nom::character::complete::line_ending;
+use nom::combinator::map;
+use nom::multi::many0;
+use nom::sequence::tuple;
+use nom::IResult;
 use std::fmt;
 
 /// Message definition.
@@ -36,4 +45,61 @@ impl fmt::Display for DbcMessage {
         }
         Ok(())
     }
+}
+
+fn dbc_message_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    dbc_object_name(input)
+}
+
+fn dbc_message_header(input: &str) -> IResult<&str, DbcMessageHeader, DbcParseError> {
+    let res = map(
+        tuple((
+            multispacey(tag("BO_")),
+            spacey(integer_value), // can id
+            spacey(dbc_message_name),
+            spacey(tag(":")),
+            spacey(integer_value), // length
+            spacey(dbc_node_name),
+        )),
+        |(_, can_id, message_name, _, length, sending_node_name)| DbcMessageHeader {
+            can_id,
+            name: String::from(message_name),
+            length,
+            sending_node: String::from(sending_node_name),
+        },
+    )(input);
+
+    match res {
+        Ok((remain, header)) => {
+            log::info!("parse message header: {:?}", header);
+            Ok((remain, header))
+        }
+        Err(e) => {
+            log::trace!("parse message header failed, e = {:?}", e);
+            Err(nom::Err::Error(DbcParseError::BadMessageHeader))
+        }
+    }
+}
+
+pub fn dbc_message(input: &str) -> IResult<&str, DbcMessage, DbcParseError> {
+    map(
+        tuple((dbc_message_header, many0(dbc_signal), many0(line_ending))),
+        |(header, signals, _)| DbcMessage { header, signals },
+    )(input)
+}
+
+#[test]
+fn test_dbc_message_header() {
+    assert_eq!(
+        dbc_message_header(r#"BO_ 2348941054 Normal: 8 Vector__XXX"#),
+        Ok((
+            "",
+            DbcMessageHeader {
+                can_id: 2348941054,
+                name: "Normal".into(),
+                length: 8,
+                sending_node: "Vector__XXX".into(),
+            }
+        )),
+    );
 }

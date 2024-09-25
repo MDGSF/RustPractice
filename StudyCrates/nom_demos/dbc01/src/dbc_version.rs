@@ -32,3 +32,16 @@ pub fn dbc_version(input: &str) -> IResult<&str, DbcVersion, DbcParseError> {
         }
     }
 }
+
+#[test]
+fn test_dbc_version() {
+    assert_eq!(
+        dbc_version("VERSION \"1.0.0\""),
+        Ok(("", DbcVersion("1.0.0".into())))
+    );
+
+    assert_eq!(
+        dbc_version("VERSION  \"3.0.1\""),
+        Ok(("", DbcVersion("3.0.1".into())))
+    );
+}

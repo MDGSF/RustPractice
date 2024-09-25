@@ -126,3 +126,11 @@ pub fn number_value(input: &str) -> IResult<&str, f64, DbcParseError> {
         map(integer_value, |i| i as f64),
     ))(input)
 }
+
+pub fn dbc_object_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    take_while1(|c: char| c.is_alphanumeric() || c == '_')(input)
+}
+
+pub fn dbc_node_name(input: &str) -> IResult<&str, &str, DbcParseError> {
+    dbc_object_name(input)
+}
