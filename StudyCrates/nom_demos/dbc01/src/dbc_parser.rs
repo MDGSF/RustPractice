@@ -8,6 +8,7 @@ use super::dbc_message::*;
 use super::dbc_names::dbc_names;
 use super::dbc_names::DbcNames;
 use super::dbc_signal::*;
+use super::dbc_signal_value_table::DbcSignalValueTable;
 use super::dbc_version::dbc_version;
 use super::dbc_version::DbcVersion;
 use nom::combinator::all_consuming;
@@ -19,10 +20,22 @@ use std::fmt;
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct OneDbc {
+    // VERSION "xxx"
     pub version: DbcVersion,
+
+    // NS_:
     pub names: DbcNames,
+
+    // BS_:
     pub bus_configuration: Option<DbcBusConfiguration>,
+
+    // BU_:
     pub can_nodes: DbcCanNodes,
+
+    // VAL_TABLE_
+    pub signal_value_tables: Option<Vec<DbcSignalValueTable>>,
+
+    // BO_
     pub messages: Vec<DbcMessage>,
 }
 
@@ -55,6 +68,7 @@ pub fn dbc_value(input: &str) -> IResult<&str, OneDbc, DbcParseError> {
             names,
             bus_configuration,
             can_nodes,
+            signal_value_tables: None,
             messages,
         },
     )(input)
@@ -99,6 +113,7 @@ BO_ 112 MM5_10_TX1: 8 DRS_MM5_10
             names: DbcNames(vec!["BS_".into(), "CM_".into()]),
             bus_configuration: Some(DbcBusConfiguration(None)),
             can_nodes: DbcCanNodes(vec!["ABS".into(), "DRS_MM5_10".into()]),
+            signal_value_tables: None,
             messages: vec![
                 DbcMessage {
                     header: DbcMessageHeader {
