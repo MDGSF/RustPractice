@@ -46,6 +46,9 @@ impl Hooks for App {
 
     fn routes(_ctx: &AppContext) -> AppRoutes {
         AppRoutes::with_default_routes() // controller routes below
+            .add_route(controllers::comment::routes())
+            .add_route(controllers::articles::routes())
+            .add_route(controllers::guide::routes())
             .add_route(controllers::auth::routes())
     }
     async fn connect_workers(ctx: &AppContext, queue: &Queue) -> Result<()> {
@@ -54,6 +57,7 @@ impl Hooks for App {
     }
     fn register_tasks(tasks: &mut Tasks) {
         tasks.register(tasks::seed::SeedData);
+        tasks.register(tasks::user_report::UserReport);
         // tasks-inject (do not remove)
     }
     async fn truncate(db: &DatabaseConnection) -> Result<()> {
