@@ -1,5 +1,5 @@
 [alias]
-loco = "run --"
+loco = "run --bin hello-cli --"
 loco-tool = "run --"
 
 playground = "run --example playground"
