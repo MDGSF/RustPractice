@@ -3,6 +3,7 @@ pub mod color;
 pub mod comment;
 pub mod error;
 pub mod identifier;
+pub mod integers;
 pub mod whitespace;
 
 pub fn add(left: u64, right: u64) -> u64 {
