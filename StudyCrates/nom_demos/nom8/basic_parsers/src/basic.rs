@@ -35,4 +35,26 @@ mod tests {
             Err(Err::Error(Error::new("", ErrorKind::IsNot)))
         );
     }
+
+    #[test]
+    fn test_pair() {
+        use nom::bytes::complete::tag;
+        use nom::sequence::pair;
+        use nom::{Err, Parser, error::ErrorKind};
+
+        let mut parser = pair(tag("abc"), tag("efg"));
+
+        assert_eq!(parser.parse("abcefg"), Ok(("", ("abc", "efg"))));
+        assert_eq!(parser.parse("abcefghij"), Ok(("hij", ("abc", "efg"))));
+        assert_eq!(parser.parse(""), Err(Err::Error(("", ErrorKind::Tag))));
+        assert_eq!(
+            parser.parse("123"),
+            Err(Err::Error(("123", ErrorKind::Tag)))
+        );
+
+        assert_eq!(
+            parser.parse("abcxyz"),
+            Err(Err::Error(("xyz", ErrorKind::Tag)))
+        );
+    }
 }
