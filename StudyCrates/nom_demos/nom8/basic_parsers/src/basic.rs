@@ -57,4 +57,39 @@ mod tests {
             Err(Err::Error(("xyz", ErrorKind::Tag)))
         );
     }
+
+    #[test]
+    fn test_char() {
+        use nom::character::complete::char;
+
+        fn parser(i: &str) -> IResult<&str, char> {
+            char('a')(i)
+        }
+
+        assert_eq!(parser("abc"), Ok(("bc", 'a')));
+        assert_eq!(
+            parser(" abc"),
+            Err(Err::Error(Error::new(" abc", ErrorKind::Char)))
+        );
+        assert_eq!(
+            parser("bc"),
+            Err(Err::Error(Error::new("bc", ErrorKind::Char)))
+        );
+        assert_eq!(parser(""), Err(Err::Error(Error::new("", ErrorKind::Char))));
+    }
+
+    #[test]
+    fn test_is_a() {
+        use nom::bytes::complete::is_a;
+
+        fn hex(s: &str) -> IResult<&str, &str> {
+            is_a("1234567890ABCDEF")(s)
+        }
+
+        assert_eq!(hex("123 and voila"), Ok((" and voila", "123")));
+        assert_eq!(hex("DEADBEEF and others"), Ok((" and others", "DEADBEEF")));
+        assert_eq!(hex("BADBABEsomething"), Ok(("something", "BADBABE")));
+        assert_eq!(hex("D15EA5E"), Ok(("", "D15EA5E")));
+        assert_eq!(hex(""), Err(Err::Error(Error::new("", ErrorKind::IsA))));
+    }
 }
