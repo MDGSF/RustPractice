@@ -5,6 +5,7 @@ pub mod error;
 pub mod identifier;
 pub mod integers;
 pub mod json;
+pub mod json2;
 pub mod string;
 pub mod whitespace;
 
