@@ -511,4 +511,42 @@ mod tests {
         assert_eq!(parser("abc"), Err(Err::Error(("abc", ErrorKind::Float))));
         assert_eq!(parser("-12.34"), Ok(("", -12.34)));
     }
+
+    #[test]
+    fn test_alpha0() {
+        use nom::character::complete::alpha0;
+
+        fn parser(input: &str) -> IResult<&str, &str> {
+            alpha0(input)
+        }
+
+        assert_eq!(parser("ab1c"), Ok(("1c", "ab")));
+        assert_eq!(parser("1c"), Ok(("1c", "")));
+        assert_eq!(parser(""), Ok(("", "")));
+    }
+
+    #[test]
+    fn test_alphanumeric0() {
+        use nom::character::complete::alphanumeric0;
+
+        fn parser(input: &str) -> IResult<&str, &str> {
+            alphanumeric0(input)
+        }
+
+        assert_eq!(parser("21cZ%1"), Ok(("%1", "21cZ")));
+        assert_eq!(parser("&Z21c"), Ok(("&Z21c", "")));
+        assert_eq!(parser(""), Ok(("", "")));
+    }
+
+    #[test]
+    fn test_anychar() {
+        use nom::character::complete::anychar;
+
+        fn parser(input: &str) -> IResult<&str, char> {
+            anychar(input)
+        }
+
+        assert_eq!(parser("abc"), Ok(("bc", 'a')));
+        assert_eq!(parser(""), Err(Err::Error(Error::new("", ErrorKind::Eof))));
+    }
 }
